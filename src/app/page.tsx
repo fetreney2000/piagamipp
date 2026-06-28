@@ -1,66 +1,81 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client';
 
-export default function Home() {
+import { useEffect, useState, useCallback } from 'react';
+import { Card, Text, SimpleGrid, Group, Title, Center } from '@mantine/core';
+import { MonthPickerInput } from '@mantine/dates';
+
+interface Stats {
+  totalIndents: number;
+  completedIndents: number;
+  under120: number;
+  over120: number;
+  complianceRate: number;
+  averageTime: number;
+  medianTime: number;
+}
+
+export default function DashboardPage() {
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [date, setDate] = useState<Date | null>(new Date());
+
+  const fetchStats = useCallback(async () => {
+    if (!date) return;
+    const month = date.getMonth() + 1;
+    const year = date.getFullYear();
+    const res = await fetch(`/api/indents/stats?month=${month}&year=${year}`);
+    const data = await res.json();
+    setStats(data);
+  }, [date]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  const complianceColor = stats && stats.complianceRate >= 80 ? 'green' : 'red';
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <>
+      <Group justify="space-between" mb="lg">
+        <Title order={2}>Dashboard</Title>
+        <MonthPickerInput
+          value={date}
+          onChange={(v) => setDate(v as Date | null)}
+          placeholder="Select month"
         />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </Group>
+
+      {stats ? (
+        <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }}>
+          <Card shadow="sm" padding="lg" withBorder>
+            <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Total Indents</Text>
+            <Text size="xxxl" fw={700}>{stats.totalIndents}</Text>
+          </Card>
+          <Card shadow="sm" padding="lg" withBorder>
+            <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Indents {"<="} 2 Hours</Text>
+            <Text size="xxxl" fw={700} c="green">{stats.under120}</Text>
+          </Card>
+          <Card shadow="sm" padding="lg" withBorder>
+            <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Indents {'>'} 2 Hours</Text>
+            <Text size="xxxl" fw={700} c="red">{stats.over120}</Text>
+          </Card>
+          <Card shadow="sm" padding="lg" withBorder>
+            <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Compliance Rate</Text>
+            <Text size="xxxl" fw={700} c={complianceColor}>{stats.complianceRate.toFixed(1)}%</Text>
+          </Card>
+          <Card shadow="sm" padding="lg" withBorder>
+            <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Average Time (min)</Text>
+            <Text size="xxxl" fw={700}>{stats.averageTime.toFixed(1)}</Text>
+          </Card>
+          <Card shadow="sm" padding="lg" withBorder>
+            <Text size="xs" c="dimmed" tt="uppercase" fw={700}>Median Time (min)</Text>
+            <Text size="xxxl" fw={700}>{stats.medianTime.toFixed(1)}</Text>
+          </Card>
+        </SimpleGrid>
+      ) : (
+        <Center h={200}>
+          <Text c="dimmed">Loading stats...</Text>
+        </Center>
+      )}
+    </>
   );
 }
