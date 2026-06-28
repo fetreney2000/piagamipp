@@ -50,6 +50,21 @@ export default function IndentsPage() {
   const [filterPolicy, setFilterPolicy] = useState<string | null>(null);
   const [filterDate, setFilterDate] = useState<Date | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [, forceUpdate] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => forceUpdate(n => n + 1), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  function getElapsedMinutes(indent: Indent): number | null {
+    if (indent.counterchecked) return indent.totalTimeMinutes;
+    if (!indent.dateReceived || !indent.timeReceived) return null;
+    const [rh, rm] = indent.timeReceived.split(':').map(Number);
+    const d = new Date(indent.dateReceived);
+    const startUTC = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), rh - 8, rm);
+    return Math.floor((Date.now() - startUTC) / 60000);
+  }
 
   const form = useForm({
     initialValues: {
@@ -301,8 +316,9 @@ export default function IndentsPage() {
         </Table.Thead>
         <Table.Tbody>
           {indents.map((indent) => {
-            const exceeded = indent.totalTimeMinutes !== null && indent.totalTimeMinutes > 120;
-            const achieved = indent.totalTimeMinutes !== null && indent.totalTimeMinutes <= 120;
+            const elapsed = getElapsedMinutes(indent);
+            const exceeded = elapsed !== null && elapsed > 120;
+            const achieved = elapsed !== null && elapsed <= 120;
             return (
               <Table.Tr key={indent._id} style={{ cursor: 'pointer' }}>
                 <Table.Td onClick={() => openEditModal(indent)}>{formatDate(indent.dateReceived)}</Table.Td>
@@ -321,14 +337,14 @@ export default function IndentsPage() {
                 <Table.Td onClick={() => openEditModal(indent)}>{formatDate(indent.dateCompleted)}</Table.Td>
                 <Table.Td onClick={() => openEditModal(indent)}>{indent.timeCompleted || '\u2014'}</Table.Td>
                 <Table.Td onClick={() => openEditModal(indent)}>
-                  {indent.totalTimeMinutes !== null ? (
+                  {elapsed !== null ? (
                     <Text c={exceeded ? 'red' : undefined} fw={exceeded ? 700 : undefined}>
-                      {indent.totalTimeMinutes}
+                      {elapsed}
                     </Text>
                   ) : '\u2014'}
                 </Table.Td>
                 <Table.Td onClick={() => openEditModal(indent)}>
-                  {indent.totalTimeMinutes !== null ? (
+                  {elapsed !== null ? (
                     <Badge color={achieved ? 'green' : 'red'}>
                       {achieved ? 'Achieved' : 'Exceeded'}
                     </Badge>
