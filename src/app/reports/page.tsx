@@ -28,6 +28,12 @@ const groups = [
   { value: 'on_call', label: 'On Call', type: 'on_call', icon: IconPhoneCall },
 ];
 
+function toDateOrNull(v: Date | string | null): Date | null {
+  if (v === null || v === undefined) return null;
+  if (v instanceof Date) return v;
+  return new Date(v + 'T00:00:00.000Z');
+}
+
 export default function ReportsPage() {
   const [statsMap, setStatsMap] = useState<Record<string, GroupStats>>({});
   const [date, setDate] = useState<Date | null>(() => {
@@ -123,7 +129,7 @@ export default function ReportsPage() {
           <IconReportAnalytics size={28} />
           <Title order={2}>Reports</Title>
         </Group>
-        <MonthPickerInput value={date} onChange={(v) => setDate(v as Date | null)} placeholder="Select month" leftSection={<IconCalendarMonth size={16} />} />
+        <MonthPickerInput value={date} onChange={(v) => setDate(toDateOrNull(v))} placeholder="Select month" leftSection={<IconCalendarMonth size={16} />} />
       </Group>
 
       {loading ? (

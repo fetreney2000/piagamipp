@@ -19,6 +19,12 @@ interface Stats {
   medianTime: number;
 }
 
+function toDateOrNull(v: Date | string | null): Date | null {
+  if (v === null || v === undefined) return null;
+  if (v instanceof Date) return v;
+  return new Date(v + 'T00:00:00.000Z');
+}
+
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [date, setDate] = useState<Date | null>(() => {
@@ -51,7 +57,7 @@ export default function DashboardPage() {
         </Group>
         <MonthPickerInput
           value={date}
-          onChange={(v) => setDate(v as Date | null)}
+          onChange={(v) => setDate(toDateOrNull(v))}
           placeholder="Select month"
           leftSection={<IconCalendarMonth size={16} />}
         />

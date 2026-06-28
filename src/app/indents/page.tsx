@@ -41,6 +41,12 @@ const typeLabels: Record<string, string> = {
   on_call: 'On Call',
 };
 
+function toDateOrNull(v: Date | string | null): Date | null {
+  if (v === null || v === undefined) return null;
+  if (v instanceof Date) return v;
+  return new Date(v + 'T00:00:00.000Z');
+}
+
 export default function IndentsPage() {
   const [indents, setIndents] = useState<Indent[]>([]);
   const [wards, setWards] = useState<Ward[]>([]);
@@ -271,7 +277,7 @@ export default function IndentsPage() {
         <MonthPickerInput
           placeholder="Filter by month"
           value={filterDate}
-          onChange={(v) => setFilterDate(v as Date | null)}
+          onChange={(v) => setFilterDate(toDateOrNull(v))}
           clearable
           leftSection={<IconCalendarSearch size={16} />}
         />
@@ -379,6 +385,7 @@ export default function IndentsPage() {
             label="Date Received"
             placeholder="Select date"
             {...form.getInputProps('dateReceived')}
+            onChange={(v) => form.setFieldValue('dateReceived', toDateOrNull(v))}
             mb="sm"
             leftSection={<IconCalendarEvent size={16} />}
           />
