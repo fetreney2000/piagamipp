@@ -395,8 +395,8 @@ export default function IndentsPage() {
             const elapsed = getElapsedMinutes(indent);
             const exceeded = elapsed !== null && elapsed > 120;
             const achieved = elapsed !== null && elapsed <= 120;
-            const isNearLimit = elapsed !== null && !indent.counterchecked && elapsed >= 105;
-            const isUrgent = elapsed !== null && !indent.counterchecked && elapsed >= 115;
+            const isNearLimit = elapsed !== null && !indent.counterchecked && elapsed >= 105 && elapsed < 120;
+            const isUrgent = elapsed !== null && !indent.counterchecked && elapsed >= 115 && elapsed < 120;
             return (
               <Table.Tr key={indent._id} style={{ cursor: 'pointer', backgroundColor: isUrgent ? 'var(--mantine-color-red-0)' : isNearLimit ? 'var(--mantine-color-orange-0)' : undefined }}>
                 <Table.Td onClick={() => openEditModal(indent)}>{formatDate(indent.dateReceived)}</Table.Td>
@@ -421,9 +421,11 @@ export default function IndentsPage() {
                       <Text c={exceeded ? 'red' : isNearLimit ? (isUrgent ? 'red' : 'orange') : undefined} fw={(exceeded || isNearLimit) ? 700 : undefined}>
                         {elapsed}
                       </Text>
-                      <Text size="xs" c={isUrgent ? 'red' : 'orange'} fw={700}>
-                        {120 - elapsed}m left
-                      </Text>
+                      {isNearLimit && (
+                        <Text size="xs" c={isUrgent ? 'red' : 'orange'} fw={700}>
+                          {120 - elapsed}m left
+                        </Text>
+                      )}
                     </Group>
                   ) : '\u2014'}
                 </Table.Td>
