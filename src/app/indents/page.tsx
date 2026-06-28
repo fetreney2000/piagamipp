@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import {
   Button, Table, Badge, Modal, Select, NumberInput, Group, Title, ActionIcon, Text, Switch, SimpleGrid,
 } from '@mantine/core';
-import { DatePickerInput, TimeInput } from '@mantine/dates';
+import { DatePickerInput, MonthPickerInput, TimeInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { showNotification } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
@@ -211,7 +211,7 @@ export default function IndentsPage() {
       </Group>
 
       <SimpleGrid cols={{ base: 1, sm: 3 }} mb="md">
-        <DatePickerInput
+        <MonthPickerInput
           placeholder="Filter by month"
           value={filterDate}
           onChange={(v) => setFilterDate(v as Date | null)}
