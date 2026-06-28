@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Button, Table, Badge, Modal, Select, NumberInput, Group, Title, ActionIcon, Text, Switch, SimpleGrid,
 } from '@mantine/core';
@@ -16,6 +16,33 @@ import {
   IconHourglass, IconTarget, IconSettings, IconTrash, IconEdit, IconX, IconDeviceFloppy,
   IconMoonStars, IconPhoneCall, IconCircleCheck, IconAlertCircle,
 } from '@tabler/icons-react';
+
+let warningAudioCtx: AudioContext | null = null;
+
+function playWarningSound() {
+  try {
+    if (!warningAudioCtx) {
+      const AudioCtx = window.AudioContext || (window as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtx) return;
+      warningAudioCtx = new AudioCtx();
+    }
+    if (warningAudioCtx.state === 'suspended') {
+      warningAudioCtx.resume();
+    }
+    const osc = warningAudioCtx.createOscillator();
+    const gain = warningAudioCtx.createGain();
+    osc.connect(gain);
+    gain.connect(warningAudioCtx.destination);
+    osc.frequency.value = 800;
+    osc.type = 'sine';
+    gain.gain.setValueAtTime(0.3, warningAudioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, warningAudioCtx.currentTime + 0.5);
+    osc.start();
+    osc.stop(warningAudioCtx.currentTime + 0.5);
+  } catch {
+    // Audio not supported
+  }
+}
 
 interface Indent {
   _id: string;
@@ -54,12 +81,53 @@ export default function IndentsPage() {
   const [editing, setEditing] = useState<Indent | null>(null);
   const [filterWard, setFilterWard] = useState<string | null>(null);
   const [filterPolicy, setFilterPolicy] = useState<string | null>(null);
-  const [filterDate, setFilterDate] = useState<Date | null>(null);
+  const [filterDate, setFilterDate] = useState<Date | null>(() => {
+    const { date } = getMYTCurrentDateTime();
+    const [y, m] = date.split('-').map(Number);
+    return new Date(y, m - 1);
+  });
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [, forceUpdate] = useState(0);
+  const warningsShown = useRef<Set<string>>(new Set());
+  const indentsRef = useRef(indents);
+  indentsRef.current = indents;
 
   useEffect(() => {
-    const interval = setInterval(() => forceUpdate(n => n + 1), 1000);
+    const interval = setInterval(() => {
+      forceUpdate(n => n + 1);
+
+      indentsRef.current.forEach(indent => {
+        if (indent.counterchecked) return;
+        const elapsed = getElapsedMinutes(indent);
+        if (elapsed === null) return;
+
+        if (elapsed >= 105 && elapsed < 115) {
+          const key = `${indent._id}-105`;
+          if (!warningsShown.current.has(key)) {
+            warningsShown.current.add(key);
+            playWarningSound();
+            showNotification({
+              title: '15 Minutes Remaining',
+              message: `Indent #${indent.wardName} is approaching the 2-hour limit.`,
+              color: 'orange',
+              icon: <IconAlertCircle size={16} />,
+            });
+          }
+        } else if (elapsed >= 115 && elapsed < 120) {
+          const key = `${indent._id}-115`;
+          if (!warningsShown.current.has(key)) {
+            warningsShown.current.add(key);
+            playWarningSound();
+            showNotification({
+              title: '5 Minutes Remaining!',
+              message: `Indent #${indent.wardName} is nearing the 2-hour limit!`,
+              color: 'red',
+              icon: <IconAlertCircle size={16} />,
+            });
+          }
+        }
+      });
+    }, 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -327,8 +395,10 @@ export default function IndentsPage() {
             const elapsed = getElapsedMinutes(indent);
             const exceeded = elapsed !== null && elapsed > 120;
             const achieved = elapsed !== null && elapsed <= 120;
+            const isNearLimit = elapsed !== null && !indent.counterchecked && elapsed >= 105;
+            const isUrgent = elapsed !== null && !indent.counterchecked && elapsed >= 115;
             return (
-              <Table.Tr key={indent._id} style={{ cursor: 'pointer' }}>
+              <Table.Tr key={indent._id} style={{ cursor: 'pointer', backgroundColor: isUrgent ? 'var(--mantine-color-red-0)' : isNearLimit ? 'var(--mantine-color-orange-0)' : undefined }}>
                 <Table.Td onClick={() => openEditModal(indent)}>{formatDate(indent.dateReceived)}</Table.Td>
                 <Table.Td onClick={() => openEditModal(indent)}>{indent.timeReceived}</Table.Td>
                 <Table.Td onClick={() => openEditModal(indent)}>{typeLabels[indent.type] || indent.type}</Table.Td>
@@ -346,9 +416,17 @@ export default function IndentsPage() {
                 <Table.Td onClick={() => openEditModal(indent)}>{indent.timeCompleted || '\u2014'}</Table.Td>
                 <Table.Td onClick={() => openEditModal(indent)}>
                   {elapsed !== null ? (
-                    <Text c={exceeded ? 'red' : undefined} fw={exceeded ? 700 : undefined}>
-                      {elapsed}
-                    </Text>
+                    <Group gap={4}>
+                      {isNearLimit && <IconAlertCircle size={14} color={isUrgent ? 'red' : 'orange'} />}
+                      <Text c={exceeded ? 'red' : isNearLimit ? (isUrgent ? 'red' : 'orange') : undefined} fw={(exceeded || isNearLimit) ? 700 : undefined}>
+                        {elapsed}
+                      </Text>
+                      {isNearLimit && (
+                        <Text size="xs" c={isUrgent ? 'red' : 'orange'} fw={700}>
+                          {isUrgent ? '5m left!' : '15m left'}
+                        </Text>
+                      )}
+                    </Group>
                   ) : '\u2014'}
                 </Table.Td>
                 <Table.Td onClick={() => openEditModal(indent)}>
