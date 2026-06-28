@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/mongodb';
+import { createUTCDate } from '@/lib/timezone';
 
 function median(values: number[]): number {
   if (values.length === 0) return 0;
@@ -24,8 +25,8 @@ export async function GET(request: NextRequest) {
       const m = parseInt(month);
       const y = parseInt(year);
       matchFilter.dateReceived = {
-        $gte: new Date(y, m - 1, 1),
-        $lt: new Date(y, m, 1),
+        $gte: createUTCDate(y, m, 1),
+        $lt: createUTCDate(y, m + 1, 1),
       };
     }
     if (type) {

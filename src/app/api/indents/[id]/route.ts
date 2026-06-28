@@ -5,12 +5,12 @@ import { getMYTCurrentDateTime } from '@/lib/timezone';
 
 function calculateMinutes(dateReceived: Date, timeReceived: string, dateCompleted: Date, timeCompleted: string): number {
   const [rh, rm] = timeReceived.split(':').map(Number);
-  const start = new Date(dateReceived);
-  start.setHours(rh, rm, 0, 0);
+  const [ry, rmon, rd] = [dateReceived.getUTCFullYear(), dateReceived.getUTCMonth(), dateReceived.getUTCDate()];
+  const start = new Date(Date.UTC(ry, rmon, rd, rh, rm));
 
   const [ch, cm] = timeCompleted.split(':').map(Number);
-  const end = new Date(dateCompleted);
-  end.setHours(ch, cm, 0, 0);
+  const [cy, cmon, cd] = [dateCompleted.getUTCFullYear(), dateCompleted.getUTCMonth(), dateCompleted.getUTCDate()];
+  const end = new Date(Date.UTC(cy, cmon, cd, ch, cm));
 
   return Math.round((end.getTime() - start.getTime()) / 60000);
 }

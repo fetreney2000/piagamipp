@@ -14,3 +14,7 @@ export function getMYTCurrentDateTime() {
   const [datePart, timePart] = formatted.split(', ');
   return { date: datePart, time: timePart };
 }
+
+export function createUTCDate(year: number, month: number, day: number): Date {
+  return new Date(Date.UTC(year, month - 1, day));
+}

@@ -2,13 +2,13 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import {
-  Button, Table, Badge, Modal, Select, NumberInput, Group, Title, ActionIcon, Text,
+  Button, Table, Badge, Modal, Select, NumberInput, Group, Title, ActionIcon, Text, Switch, SimpleGrid,
 } from '@mantine/core';
 import { DatePickerInput, TimeInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { showNotification } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
-import { getMYTCurrentDateTime } from '@/lib/timezone';
+import { getMYTCurrentDateTime, createUTCDate } from '@/lib/timezone';
 
 interface Indent {
   _id: string;
@@ -34,11 +34,22 @@ const typeLabels: Record<string, string> = {
   on_call: 'On Call',
 };
 
+function getTimeColor(minutes: number | null): string | undefined {
+  if (minutes === null) return undefined;
+  const ratio = Math.min(minutes / 120, 1);
+  const r = Math.round(ratio * 255);
+  const g = Math.round((1 - ratio) * 255);
+  return `rgb(${r}, ${g}, 0)`;
+}
+
 export default function IndentsPage() {
   const [indents, setIndents] = useState<Indent[]>([]);
   const [wards, setWards] = useState<Ward[]>([]);
   const [modalOpened, setModalOpened] = useState(false);
   const [editing, setEditing] = useState<Indent | null>(null);
+  const [filterWard, setFilterWard] = useState<string | null>(null);
+  const [filterPolicy, setFilterPolicy] = useState<string | null>(null);
+  const [filterDate, setFilterDate] = useState<Date | null>(null);
 
   const form = useForm({
     initialValues: {
@@ -52,10 +63,20 @@ export default function IndentsPage() {
   });
 
   const fetchIndents = useCallback(async () => {
-    const res = await fetch('/api/indents');
+    const params = new URLSearchParams();
+    if (filterWard) params.set('ward', filterWard);
+    if (filterPolicy) params.set('policy', filterPolicy);
+    if (filterDate) {
+      const y = filterDate.getFullYear();
+      const m = filterDate.getMonth() + 1;
+      params.set('month', String(m));
+      params.set('year', String(y));
+    }
+    const qs = params.toString();
+    const res = await fetch(`/api/indents${qs ? `?${qs}` : ''}`);
     const data = await res.json();
     setIndents(data);
-  }, []);
+  }, [filterWard, filterPolicy, filterDate]);
 
   const fetchWards = useCallback(async () => {
     const res = await fetch('/api/wards');
@@ -68,13 +89,20 @@ export default function IndentsPage() {
     fetchWards();
   }, [fetchIndents, fetchWards]);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchIndents();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [fetchIndents]);
+
   const openAddModal = () => {
     setEditing(null);
     form.reset();
     const { date, time } = getMYTCurrentDateTime();
     const [y, m, d] = date.split('-').map(Number);
     form.setValues({
-      dateReceived: new Date(y, m - 1, d),
+      dateReceived: createUTCDate(y, m, d),
       timeReceived: time.slice(0, 5),
     });
     setModalOpened(true);
@@ -106,9 +134,7 @@ export default function IndentsPage() {
       if (values.counterchecked && !editing.counterchecked) {
         const { date, time } = getMYTCurrentDateTime();
         const [y, m, d] = date.split('-').map(Number);
-        const [hh, mm] = time.split(':').map(Number);
-        const mytDate = new Date(y, m - 1, d, hh, mm);
-        payload.dateCompleted = mytDate.toISOString();
+        payload.dateCompleted = createUTCDate(y, m, d).toISOString();
         payload.timeCompleted = time.slice(0, 5);
       }
       const res = await fetch(`/api/indents/${editing._id}`, {
@@ -164,7 +190,7 @@ export default function IndentsPage() {
   };
 
   const formatDate = (d: string | null) => {
-    if (!d) return '—';
+    if (!d) return '\u2014';
     return new Date(d).toLocaleDateString('en-GB');
   };
 
@@ -174,6 +200,34 @@ export default function IndentsPage() {
         <Title order={2}>Indents</Title>
         <Button onClick={openAddModal}>Add New Indent</Button>
       </Group>
+
+      <SimpleGrid cols={{ base: 1, sm: 3 }} mb="md">
+        <DatePickerInput
+          placeholder="Filter by month"
+          value={filterDate}
+          onChange={(v) => setFilterDate(v as Date | null)}
+          clearable
+        />
+        <Select
+          placeholder="Filter by ward"
+          data={wards.map((w) => ({ value: w.name, label: w.name }))}
+          value={filterWard}
+          onChange={setFilterWard}
+          clearable
+          searchable
+        />
+        <Select
+          placeholder="Filter by policy"
+          data={[
+            { value: 'achieved', label: 'Policy Achieved' },
+            { value: 'exceeded', label: 'Policy Exceeded' },
+            { value: 'pending', label: 'Pending' },
+          ]}
+          value={filterPolicy}
+          onChange={setFilterPolicy}
+          clearable
+        />
+      </SimpleGrid>
 
       <Table striped highlightOnHover withTableBorder>
         <Table.Thead>
@@ -187,38 +241,51 @@ export default function IndentsPage() {
             <Table.Th>Date Completed</Table.Th>
             <Table.Th>Time Completed</Table.Th>
             <Table.Th>Total Time (min)</Table.Th>
+            <Table.Th>Policy Achieved</Table.Th>
             <Table.Th>Actions</Table.Th>
           </Table.Tr>
         </Table.Thead>
         <Table.Tbody>
-          {indents.map((indent) => (
-            <Table.Tr key={indent._id} style={{ cursor: 'pointer' }}>
-              <Table.Td onClick={() => openEditModal(indent)}>{formatDate(indent.dateReceived)}</Table.Td>
-              <Table.Td onClick={() => openEditModal(indent)}>{indent.timeReceived}</Table.Td>
-              <Table.Td onClick={() => openEditModal(indent)}>{typeLabels[indent.type] || indent.type}</Table.Td>
-              <Table.Td onClick={() => openEditModal(indent)}>{indent.wardName}</Table.Td>
-              <Table.Td onClick={() => openEditModal(indent)}>{indent.numberOfRx}</Table.Td>
-              <Table.Td onClick={() => openEditModal(indent)}>
-                <Badge color={indent.counterchecked ? 'green' : 'orange'}>
-                  {indent.counterchecked ? 'Yes' : 'No'}
-                </Badge>
-              </Table.Td>
-              <Table.Td onClick={() => openEditModal(indent)}>{formatDate(indent.dateCompleted)}</Table.Td>
-              <Table.Td onClick={() => openEditModal(indent)}>{indent.timeCompleted || '—'}</Table.Td>
-              <Table.Td onClick={() => openEditModal(indent)}>
-                {indent.totalTimeMinutes !== null ? (
-                  <Text c={indent.totalTimeMinutes > 120 ? 'red' : undefined} fw={indent.totalTimeMinutes > 120 ? 700 : undefined}>
-                    {indent.totalTimeMinutes}
-                  </Text>
-                ) : '—'}
-              </Table.Td>
-              <Table.Td>
-                <ActionIcon color="red" onClick={() => handleDelete(indent)} variant="subtle" aria-label="Delete">
-                  ✕
-                </ActionIcon>
-              </Table.Td>
-            </Table.Tr>
-          ))}
+          {indents.map((indent) => {
+            const achieved = indent.totalTimeMinutes !== null && indent.totalTimeMinutes <= 120;
+            return (
+              <Table.Tr key={indent._id} style={{ cursor: 'pointer' }}>
+                <Table.Td onClick={() => openEditModal(indent)}>{formatDate(indent.dateReceived)}</Table.Td>
+                <Table.Td onClick={() => openEditModal(indent)}>{indent.timeReceived}</Table.Td>
+                <Table.Td onClick={() => openEditModal(indent)}>{typeLabels[indent.type] || indent.type}</Table.Td>
+                <Table.Td onClick={() => openEditModal(indent)}>{indent.wardName}</Table.Td>
+                <Table.Td onClick={() => openEditModal(indent)}>{indent.numberOfRx}</Table.Td>
+                <Table.Td onClick={() => openEditModal(indent)}>
+                  <Badge color={indent.counterchecked ? 'green' : 'orange'}>
+                    {indent.counterchecked ? 'Yes' : 'No'}
+                  </Badge>
+                </Table.Td>
+                <Table.Td onClick={() => openEditModal(indent)}>{formatDate(indent.dateCompleted)}</Table.Td>
+                <Table.Td onClick={() => openEditModal(indent)}>{indent.timeCompleted || '\u2014'}</Table.Td>
+                <Table.Td onClick={() => openEditModal(indent)}>
+                  {indent.totalTimeMinutes !== null ? (
+                    <Text c={getTimeColor(indent.totalTimeMinutes)} fw={700}>
+                      {indent.totalTimeMinutes}
+                    </Text>
+                  ) : '\u2014'}
+                </Table.Td>
+                <Table.Td onClick={() => openEditModal(indent)}>
+                  {indent.totalTimeMinutes !== null ? (
+                    <Badge color={achieved ? 'green' : 'red'}>
+                      {achieved ? 'Achieved' : 'Exceeded'}
+                    </Badge>
+                  ) : (
+                    '\u2014'
+                  )}
+                </Table.Td>
+                <Table.Td>
+                  <ActionIcon color="red" onClick={() => handleDelete(indent)} variant="subtle" aria-label="Delete">
+                    {'\u2715'}
+                  </ActionIcon>
+                </Table.Td>
+              </Table.Tr>
+            );
+          })}
         </Table.Tbody>
       </Table>
 
@@ -267,14 +334,10 @@ export default function IndentsPage() {
             mb="sm"
           />
           {editing && (
-            <Select
+            <Switch
               label="Counterchecked"
-              data={[
-                { value: 'false', label: 'No' },
-                { value: 'true', label: 'Yes' },
-              ]}
-              value={form.values.counterchecked ? 'true' : 'false'}
-              onChange={(v) => form.setFieldValue('counterchecked', v === 'true')}
+              checked={form.values.counterchecked}
+              onChange={(e) => form.setFieldValue('counterchecked', e.currentTarget.checked)}
               mb="sm"
             />
           )}

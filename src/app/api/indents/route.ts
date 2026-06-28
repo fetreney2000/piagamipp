@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/mongodb';
+import { createUTCDate } from '@/lib/timezone';
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,18 +9,32 @@ export async function GET(request: NextRequest) {
     const month = searchParams.get('month');
     const year = searchParams.get('year');
     const type = searchParams.get('type');
+    const ward = searchParams.get('ward');
+    const policy = searchParams.get('policy');
 
     const filter: Record<string, unknown> = {};
     if (month && year) {
       const m = parseInt(month);
       const y = parseInt(year);
       filter.dateReceived = {
-        $gte: new Date(y, m - 1, 1),
-        $lt: new Date(y, m, 1),
+        $gte: createUTCDate(y, m, 1),
+        $lt: createUTCDate(y, m + 1, 1),
       };
     }
     if (type) {
       filter.type = type;
+    }
+    if (ward) {
+      filter.wardName = ward;
+    }
+    if (policy === 'achieved') {
+      filter.counterchecked = true;
+      filter.totalTimeMinutes = { $lte: 120 };
+    } else if (policy === 'exceeded') {
+      filter.counterchecked = true;
+      filter.totalTimeMinutes = { $gt: 120 };
+    } else if (policy === 'pending') {
+      filter.counterchecked = false;
     }
 
     const indents = await db.collection('indents').find(filter).sort({ dateReceived: -1 }).toArray();
