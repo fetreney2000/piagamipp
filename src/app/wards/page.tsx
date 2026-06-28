@@ -7,6 +7,9 @@ import {
 import { useForm } from '@mantine/form';
 import { showNotification } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
+import {
+  IconBuildingHospital, IconPlus, IconEdit, IconTrash, IconX, IconDeviceFloppy,
+} from '@tabler/icons-react';
 
 interface Ward {
   _id: string;
@@ -100,14 +103,17 @@ export default function WardsPage() {
   return (
     <>
       <Group justify="space-between" mb="lg">
-        <Title order={2}>Ward Management</Title>
-        <Button onClick={openAddModal}>Add Ward</Button>
+        <Group gap="xs">
+          <IconBuildingHospital size={28} />
+          <Title order={2}>Ward Management</Title>
+        </Group>
+        <Button onClick={openAddModal} leftSection={<IconPlus size={16} />}>Add Ward</Button>
       </Group>
 
       <Table striped highlightOnHover withTableBorder>
         <Table.Thead>
           <Table.Tr>
-            <Table.Th>Ward Name</Table.Th>
+            <Table.Th><Group gap={4}><IconBuildingHospital size={14} />Ward Name</Group></Table.Th>
             <Table.Th>Actions</Table.Th>
           </Table.Tr>
         </Table.Thead>
@@ -117,9 +123,9 @@ export default function WardsPage() {
               <Table.Td>{ward.name}</Table.Td>
               <Table.Td>
                 <Group gap="xs">
-                  <Button size="xs" variant="light" onClick={() => openEditModal(ward)}>Edit</Button>
+                  <Button size="xs" variant="light" onClick={() => openEditModal(ward)} leftSection={<IconEdit size={14} />}>Edit</Button>
                   <ActionIcon color="red" onClick={() => handleDelete(ward)} variant="subtle" aria-label="Delete">
-                    ✕
+                    <IconTrash size={16} />
                   </ActionIcon>
                 </Group>
               </Table.Td>
@@ -131,7 +137,12 @@ export default function WardsPage() {
       <Modal
         opened={modalOpened}
         onClose={() => setModalOpened(false)}
-        title={editing ? 'Edit Ward' : 'Add Ward'}
+        title={
+          <Group gap="xs">
+            {editing ? <IconEdit size={20} /> : <IconPlus size={20} />}
+            <span>{editing ? 'Edit Ward' : 'Add Ward'}</span>
+          </Group>
+        }
       >
         <form onSubmit={form.onSubmit(handleSubmit)}>
           <TextInput
@@ -139,10 +150,11 @@ export default function WardsPage() {
             placeholder="Enter ward name"
             {...form.getInputProps('name')}
             mb="sm"
+            leftSection={<IconBuildingHospital size={16} />}
           />
           <Group justify="flex-end" mt="md">
-            <Button variant="default" onClick={() => setModalOpened(false)}>Cancel</Button>
-            <Button type="submit">{editing ? 'Update' : 'Create'}</Button>
+            <Button variant="default" onClick={() => setModalOpened(false)} leftSection={<IconX size={16} />}>Cancel</Button>
+            <Button type="submit" leftSection={editing ? <IconDeviceFloppy size={16} /> : <IconPlus size={16} />}>{editing ? 'Update' : 'Create'}</Button>
           </Group>
         </form>
       </Modal>

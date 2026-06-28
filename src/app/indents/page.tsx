@@ -10,6 +10,12 @@ import { showNotification } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import { getMYTCurrentDateTime, createUTCDate } from '@/lib/timezone';
 import { determineIndentType } from '@/lib/indent-type';
+import {
+  IconClipboardList, IconPlus, IconCalendarSearch, IconBuildingHospital, IconFilterCheck,
+  IconCategory, IconClock, IconCalendarEvent, IconPill, IconCheckbox, IconCalendarCheck,
+  IconHourglass, IconTarget, IconSettings, IconTrash, IconEdit, IconX, IconDeviceFloppy,
+  IconMoonStars, IconPhoneCall, IconCircleCheck, IconAlertCircle,
+} from '@tabler/icons-react';
 
 interface Indent {
   _id: string;
@@ -239,8 +245,11 @@ export default function IndentsPage() {
   return (
     <>
       <Group justify="space-between" mb="lg">
-        <Title order={2}>Indents</Title>
-        <Button onClick={openAddModal}>Add New Indent</Button>
+        <Group gap="xs">
+          <IconClipboardList size={28} />
+          <Title order={2}>Indents</Title>
+        </Group>
+        <Button onClick={openAddModal} leftSection={<IconPlus size={16} />}>Add New Indent</Button>
       </Group>
 
       <SimpleGrid cols={{ base: 1, sm: 3 }} mb="md">
@@ -249,6 +258,7 @@ export default function IndentsPage() {
           value={filterDate}
           onChange={(v) => setFilterDate(v as Date | null)}
           clearable
+          leftSection={<IconCalendarSearch size={16} />}
         />
         <Select
           placeholder="Filter by ward"
@@ -257,6 +267,7 @@ export default function IndentsPage() {
           onChange={setFilterWard}
           clearable
           searchable
+          leftSection={<IconBuildingHospital size={16} />}
         />
         <Select
           placeholder="Filter by policy"
@@ -268,22 +279,23 @@ export default function IndentsPage() {
           value={filterPolicy}
           onChange={setFilterPolicy}
           clearable
+          leftSection={<IconFilterCheck size={16} />}
         />
       </SimpleGrid>
 
       <Table striped highlightOnHover withTableBorder>
         <Table.Thead>
           <Table.Tr>
-            <Table.Th>Date Received</Table.Th>
-            <Table.Th>Time Received</Table.Th>
-            <Table.Th>Type</Table.Th>
-            <Table.Th>Ward Name</Table.Th>
-            <Table.Th>Number of Rx</Table.Th>
-            <Table.Th>Counterchecked</Table.Th>
-            <Table.Th>Date Completed</Table.Th>
-            <Table.Th>Time Completed</Table.Th>
-            <Table.Th>Total Time (min)</Table.Th>
-            <Table.Th>Policy Achieved</Table.Th>
+            <Table.Th><Group gap={4}><IconCalendarEvent size={14} />Date Received</Group></Table.Th>
+            <Table.Th><Group gap={4}><IconClock size={14} />Time Received</Group></Table.Th>
+            <Table.Th><Group gap={4}><IconCategory size={14} />Type</Group></Table.Th>
+            <Table.Th><Group gap={4}><IconBuildingHospital size={14} />Ward Name</Group></Table.Th>
+            <Table.Th><Group gap={4}><IconPill size={14} />Rx</Group></Table.Th>
+            <Table.Th><Group gap={4}><IconCheckbox size={14} />Counterchecked</Group></Table.Th>
+            <Table.Th><Group gap={4}><IconCalendarCheck size={14} />Date Completed</Group></Table.Th>
+            <Table.Th><Group gap={4}><IconClock size={14} />Time Completed</Group></Table.Th>
+            <Table.Th><Group gap={4}><IconHourglass size={14} />Total Time</Group></Table.Th>
+            <Table.Th><Group gap={4}><IconTarget size={14} />Policy</Group></Table.Th>
             <Table.Th>Actions</Table.Th>
           </Table.Tr>
         </Table.Thead>
@@ -326,7 +338,7 @@ export default function IndentsPage() {
                 </Table.Td>
                 <Table.Td>
                   <ActionIcon color="red" onClick={() => handleDelete(indent)} variant="subtle" aria-label="Delete">
-                    {'\u2715'}
+                    <IconTrash size={16} />
                   </ActionIcon>
                 </Table.Td>
               </Table.Tr>
@@ -338,7 +350,12 @@ export default function IndentsPage() {
       <Modal
         opened={modalOpened}
         onClose={() => setModalOpened(false)}
-        title={editing ? 'Edit Indent' : 'Add New Indent'}
+        title={
+          <Group gap="xs">
+            {editing ? <IconEdit size={20} /> : <IconPlus size={20} />}
+            <span>{editing ? 'Edit Indent' : 'Add New Indent'}</span>
+          </Group>
+        }
         size="lg"
       >
         <form onSubmit={form.onSubmit(handleSubmit)}>
@@ -347,11 +364,13 @@ export default function IndentsPage() {
             placeholder="Select date"
             {...form.getInputProps('dateReceived')}
             mb="sm"
+            leftSection={<IconCalendarEvent size={16} />}
           />
           <TimeInput
             label="Time Received"
             {...form.getInputProps('timeReceived')}
             mb="sm"
+            leftSection={<IconClock size={16} />}
           />
           <Select
             label="Type"
@@ -363,6 +382,7 @@ export default function IndentsPage() {
             ]}
             {...form.getInputProps('type')}
             mb="sm"
+            leftSection={<IconCategory size={16} />}
           />
           <Select
             label="Ward Name"
@@ -371,6 +391,7 @@ export default function IndentsPage() {
             {...form.getInputProps('wardName')}
             mb="sm"
             searchable
+            leftSection={<IconBuildingHospital size={16} />}
           />
           <NumberInput
             label="Number of Rx"
@@ -378,6 +399,7 @@ export default function IndentsPage() {
             min={1}
             {...form.getInputProps('numberOfRx')}
             mb="sm"
+            leftSection={<IconPill size={16} />}
           />
           {editing && (
             <Switch
@@ -385,11 +407,13 @@ export default function IndentsPage() {
               checked={form.values.counterchecked}
               onChange={(e) => form.setFieldValue('counterchecked', e.currentTarget.checked)}
               mb="sm"
+              onLabel={<IconCheckbox size={14} />}
+              offLabel={<IconCheckbox size={14} />}
             />
           )}
           <Group justify="flex-end" mt="md">
-            <Button variant="default" onClick={() => setModalOpened(false)}>Cancel</Button>
-            <Button type="submit">{editing ? 'Update' : 'Create'}</Button>
+            <Button variant="default" onClick={() => setModalOpened(false)} leftSection={<IconX size={16} />}>Cancel</Button>
+            <Button type="submit" leftSection={editing ? <IconDeviceFloppy size={16} /> : <IconPlus size={16} />}>{editing ? 'Update' : 'Create'}</Button>
           </Group>
         </form>
       </Modal>

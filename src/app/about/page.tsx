@@ -1,10 +1,13 @@
 import { Title, Text, Paper, Stack, Avatar, Group, Divider, ThemeIcon } from '@mantine/core';
-import { IconClipboardCheck, IconMail, IconPhone, IconUser } from '@tabler/icons-react';
+import { IconClipboardCheck, IconMail, IconPhone, IconUser, IconInfoCircle } from '@tabler/icons-react';
 
 export default function AboutPage() {
   return (
     <>
-      <Title order={2} mb="lg">About</Title>
+      <Group gap="xs" mb="lg">
+        <IconInfoCircle size={28} />
+        <Title order={2}>About</Title>
+      </Group>
       <Paper withBorder p="xl" maw={520} radius="md">
         <Stack gap="lg" align="center">
           <Avatar size={100} radius={100} color="blue">
