@@ -344,10 +344,10 @@ export default function IndentsPage() {
                   ) : '\u2014'}
                 </Table.Td>
                 <Table.Td onClick={() => openEditModal(indent)}>
-                  {elapsed !== null ? (
-                    <Badge color={achieved ? 'green' : 'red'}>
-                      {achieved ? 'Achieved' : 'Exceeded'}
-                    </Badge>
+                  {indent.counterchecked ? (
+                    <Text c={achieved ? 'green' : 'red'} fw={700} size="xl">
+                      {achieved ? '\u2713' : '\u2715'}
+                    </Text>
                   ) : (
                     '\u2014'
                   )}
