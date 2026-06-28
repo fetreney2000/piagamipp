@@ -34,14 +34,6 @@ const typeLabels: Record<string, string> = {
   on_call: 'On Call',
 };
 
-function getTimeColor(minutes: number | null): string | undefined {
-  if (minutes === null) return undefined;
-  const ratio = Math.min(minutes / 120, 1);
-  const r = Math.round(ratio * 255);
-  const g = Math.round((1 - ratio) * 255);
-  return `rgb(${r}, ${g}, 0)`;
-}
-
 export default function IndentsPage() {
   const [indents, setIndents] = useState<Indent[]>([]);
   const [wards, setWards] = useState<Ward[]>([]);
@@ -50,6 +42,7 @@ export default function IndentsPage() {
   const [filterWard, setFilterWard] = useState<string | null>(null);
   const [filterPolicy, setFilterPolicy] = useState<string | null>(null);
   const [filterDate, setFilterDate] = useState<Date | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const form = useForm({
     initialValues: {
@@ -95,6 +88,22 @@ export default function IndentsPage() {
     }, 30000);
     return () => clearInterval(interval);
   }, [fetchIndents]);
+
+  const handleToggleCountercheck = async (indent: Indent, checked: boolean) => {
+    setTogglingId(indent._id);
+    const res = await fetch(`/api/indents/${indent._id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ counterchecked: checked }),
+    });
+    setTogglingId(null);
+    if (res.ok) {
+      showNotification({ title: 'Success', message: checked ? 'Indent counterchecked' : 'Countercheck undone', color: 'green' });
+      fetchIndents();
+    } else {
+      showNotification({ title: 'Error', message: 'Failed to update countercheck status', color: 'red' });
+    }
+  };
 
   const openAddModal = () => {
     setEditing(null);
@@ -247,6 +256,7 @@ export default function IndentsPage() {
         </Table.Thead>
         <Table.Tbody>
           {indents.map((indent) => {
+            const exceeded = indent.totalTimeMinutes !== null && indent.totalTimeMinutes > 120;
             const achieved = indent.totalTimeMinutes !== null && indent.totalTimeMinutes <= 120;
             return (
               <Table.Tr key={indent._id} style={{ cursor: 'pointer' }}>
@@ -255,16 +265,19 @@ export default function IndentsPage() {
                 <Table.Td onClick={() => openEditModal(indent)}>{typeLabels[indent.type] || indent.type}</Table.Td>
                 <Table.Td onClick={() => openEditModal(indent)}>{indent.wardName}</Table.Td>
                 <Table.Td onClick={() => openEditModal(indent)}>{indent.numberOfRx}</Table.Td>
-                <Table.Td onClick={() => openEditModal(indent)}>
-                  <Badge color={indent.counterchecked ? 'green' : 'orange'}>
-                    {indent.counterchecked ? 'Yes' : 'No'}
-                  </Badge>
+                <Table.Td onClick={(e) => e.stopPropagation()}>
+                  <Switch
+                    checked={indent.counterchecked}
+                    onChange={(e) => handleToggleCountercheck(indent, e.currentTarget.checked)}
+                    disabled={togglingId === indent._id}
+                    aria-label="Toggle counterchecked"
+                  />
                 </Table.Td>
                 <Table.Td onClick={() => openEditModal(indent)}>{formatDate(indent.dateCompleted)}</Table.Td>
                 <Table.Td onClick={() => openEditModal(indent)}>{indent.timeCompleted || '\u2014'}</Table.Td>
                 <Table.Td onClick={() => openEditModal(indent)}>
                   {indent.totalTimeMinutes !== null ? (
-                    <Text c={getTimeColor(indent.totalTimeMinutes)} fw={700}>
+                    <Text c={exceeded ? 'red' : undefined} fw={exceeded ? 700 : undefined}>
                       {indent.totalTimeMinutes}
                     </Text>
                   ) : '\u2014'}

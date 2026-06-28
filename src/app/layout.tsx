@@ -39,7 +39,7 @@ function Shell({ children }: { children: React.ReactNode }) {
               <Group>
                 <Title order={4}>PiagamIPP</Title>
               </Group>
-              <ActionIcon variant="default" onClick={toggle} size="lg" aria-label="Toggle navigation">
+              <ActionIcon variant="default" onClick={toggle} size="lg" hiddenFrom="sm" aria-label="Toggle navigation">
                 ☰
               </ActionIcon>
             </Group>
