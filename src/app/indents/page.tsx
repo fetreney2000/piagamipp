@@ -9,6 +9,7 @@ import { useForm } from '@mantine/form';
 import { showNotification } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import { getMYTCurrentDateTime, createUTCDate } from '@/lib/timezone';
+import { determineIndentType } from '@/lib/indent-type';
 
 interface Indent {
   _id: string;
@@ -88,6 +89,38 @@ export default function IndentsPage() {
     }, 30000);
     return () => clearInterval(interval);
   }, [fetchIndents]);
+
+  useEffect(() => {
+    if (editing) return;
+    const date = form.values.dateReceived;
+    const time = form.values.timeReceived;
+    if (!date || !time) return;
+
+    let cancelled = false;
+    const dateStr = date.toISOString().slice(0, 10);
+
+    (async () => {
+      try {
+        const res = await fetch('/api/holidays/check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date: dateStr }),
+        });
+        const { isPublicHoliday } = await res.json();
+        if (!cancelled) {
+          const type = determineIndentType(dateStr, time, isPublicHoliday);
+          form.setFieldValue('type', type);
+        }
+      } catch {
+        if (!cancelled) {
+          const type = determineIndentType(dateStr, time, false);
+          form.setFieldValue('type', type);
+        }
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [editing, form.values.dateReceived, form.values.timeReceived]);
 
   const handleToggleCountercheck = async (indent: Indent, checked: boolean) => {
     setTogglingId(indent._id);
