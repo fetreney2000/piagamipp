@@ -106,16 +106,18 @@ export default function IndentsPage() {
   }, []);
 
   useEffect(() => {
+    if (modalOpened) return;
     fetchIndents();
     fetchWards();
-  }, [fetchIndents, fetchWards]);
+  }, [fetchIndents, fetchWards, modalOpened]);
 
   useEffect(() => {
+    if (modalOpened) return;
     const interval = setInterval(() => {
       fetchIndents();
     }, 30000);
     return () => clearInterval(interval);
-  }, [fetchIndents]);
+  }, [fetchIndents, modalOpened]);
 
   useEffect(() => {
     if (editing) return;
