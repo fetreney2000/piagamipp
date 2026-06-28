@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import {
   Button, Table, Badge, Modal, Select, NumberInput, Group, Title, ActionIcon, Text, Switch, SimpleGrid,
 } from '@mantine/core';
-import { DatePickerInput, MonthPickerInput, TimeInput } from '@mantine/dates';
+import { DatePickerInput, MonthPickerInput, TimePicker } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { showNotification } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
@@ -421,11 +421,9 @@ export default function IndentsPage() {
                       <Text c={exceeded ? 'red' : isNearLimit ? (isUrgent ? 'red' : 'orange') : undefined} fw={(exceeded || isNearLimit) ? 700 : undefined}>
                         {elapsed}
                       </Text>
-                      {isNearLimit && (
-                        <Text size="xs" c={isUrgent ? 'red' : 'orange'} fw={700}>
-                          {isUrgent ? '5m left!' : '15m left'}
-                        </Text>
-                      )}
+                      <Text size="xs" c={isUrgent ? 'red' : 'orange'} fw={700}>
+                        {120 - elapsed}m left
+                      </Text>
                     </Group>
                   ) : '\u2014'}
                 </Table.Td>
@@ -469,9 +467,11 @@ export default function IndentsPage() {
             mb="sm"
             leftSection={<IconCalendarEvent size={16} />}
           />
-          <TimeInput
+          <TimePicker
             label="Time Received"
-            {...form.getInputProps('timeReceived')}
+            value={form.values.timeReceived}
+            onChange={(v) => form.setFieldValue('timeReceived', v)}
+            withDropdown
             mb="sm"
             leftSection={<IconClock size={16} />}
           />
