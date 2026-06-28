@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Tabs, Card, Text, SimpleGrid, Title, Group, Center } from '@mantine/core';
 import { BarChart } from '@mantine/charts';
 import { MonthPickerInput } from '@mantine/dates';
+import { getMYTCurrentDateTime } from '@/lib/timezone';
 
 interface GroupStats {
   totalIndents: number;
@@ -24,7 +25,11 @@ const groups = [
 
 export default function ReportsPage() {
   const [statsMap, setStatsMap] = useState<Record<string, GroupStats>>({});
-  const [date, setDate] = useState<Date | null>(new Date());
+  const [date, setDate] = useState<Date | null>(() => {
+    const { date } = getMYTCurrentDateTime();
+    const [y, m, d] = date.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  });
   const [loading, setLoading] = useState(true);
 
   const fetchAllStats = useCallback(async () => {

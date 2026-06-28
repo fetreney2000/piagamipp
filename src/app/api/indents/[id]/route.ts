@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { getMYTCurrentDateTime } from '@/lib/timezone';
 
 function calculateMinutes(dateReceived: Date, timeReceived: string, dateCompleted: Date, timeCompleted: string): number {
   const [rh, rm] = timeReceived.split(':').map(Number);
@@ -30,11 +31,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (body.counterchecked !== undefined) {
       updateData.counterchecked = body.counterchecked;
       if (body.counterchecked === true) {
-        const now = new Date();
-        const dateStr = now.toISOString().split('T')[0];
-        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-        updateData.dateCompleted = new Date(dateStr);
-        updateData.timeCompleted = timeStr;
+        const { date, time } = getMYTCurrentDateTime();
+        updateData.dateCompleted = new Date(date);
+        updateData.timeCompleted = time.slice(0, 5);
 
         const existing = await db.collection('indents').findOne({ _id: new ObjectId(id) });
         if (existing) {

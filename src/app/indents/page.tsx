@@ -8,6 +8,7 @@ import { DatePickerInput, TimeInput } from '@mantine/dates';
 import { useForm } from '@mantine/form';
 import { showNotification } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
+import { getMYTCurrentDateTime } from '@/lib/timezone';
 
 interface Indent {
   _id: string;
@@ -70,6 +71,12 @@ export default function IndentsPage() {
   const openAddModal = () => {
     setEditing(null);
     form.reset();
+    const { date, time } = getMYTCurrentDateTime();
+    const [y, m, d] = date.split('-').map(Number);
+    form.setValues({
+      dateReceived: new Date(y, m - 1, d),
+      timeReceived: time.slice(0, 5),
+    });
     setModalOpened(true);
   };
 
@@ -97,9 +104,12 @@ export default function IndentsPage() {
         counterchecked: values.counterchecked,
       };
       if (values.counterchecked && !editing.counterchecked) {
-        const now = new Date();
-        payload.dateCompleted = now.toISOString();
-        payload.timeCompleted = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+        const { date, time } = getMYTCurrentDateTime();
+        const [y, m, d] = date.split('-').map(Number);
+        const [hh, mm] = time.split(':').map(Number);
+        const mytDate = new Date(y, m - 1, d, hh, mm);
+        payload.dateCompleted = mytDate.toISOString();
+        payload.timeCompleted = time.slice(0, 5);
       }
       const res = await fetch(`/api/indents/${editing._id}`, {
         method: 'PUT',

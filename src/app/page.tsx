@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Card, Text, SimpleGrid, Group, Title, Center } from '@mantine/core';
 import { MonthPickerInput } from '@mantine/dates';
+import { getMYTCurrentDateTime } from '@/lib/timezone';
 
 interface Stats {
   totalIndents: number;
@@ -16,7 +17,11 @@ interface Stats {
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
-  const [date, setDate] = useState<Date | null>(new Date());
+  const [date, setDate] = useState<Date | null>(() => {
+    const { date } = getMYTCurrentDateTime();
+    const [y, m, d] = date.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  });
 
   const fetchStats = useCallback(async () => {
     if (!date) return;
