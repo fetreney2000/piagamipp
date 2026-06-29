@@ -29,7 +29,7 @@ export default function WardsPage() {
   });
 
   const fetchWards = useCallback(async () => {
-    const res = await fetch('/api/wards', { cache: 'no-store' });
+    const res = await fetch(`/api/wards?_=${Date.now()}`, { cache: 'no-store' });
     const data = await res.json();
     setWards(data);
   }, []);
@@ -37,6 +37,11 @@ export default function WardsPage() {
   useEffect(() => {
     fetchWards();
   }, [fetchWards]);
+
+  useEffect(() => {
+    if (modalOpened) return;
+    fetchWards();
+  }, [fetchWards, modalOpened]);
 
   const openAddModal = () => {
     setEditing(null);
