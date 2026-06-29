@@ -6,7 +6,7 @@ export async function GET() {
     const db = await getDatabase();
     const wards = await db.collection('wards').find().project({ _id: 1, name: 1 }).sort({ name: 1 }).toArray();
     return NextResponse.json(wards, {
-      headers: { 'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400' },
+      headers: { 'Cache-Control': 'no-cache' },
     });
   } catch {
     return NextResponse.json({ error: 'Failed to fetch wards' }, { status: 500 });

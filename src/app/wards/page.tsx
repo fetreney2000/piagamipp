@@ -29,7 +29,7 @@ export default function WardsPage() {
   });
 
   const fetchWards = useCallback(async () => {
-    const res = await fetch('/api/wards');
+    const res = await fetch('/api/wards', { cache: 'no-store' });
     const data = await res.json();
     setWards(data);
   }, []);
