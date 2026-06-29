@@ -389,16 +389,16 @@ export default function IndentsPage() {
       <Table striped highlightOnHover withTableBorder>
         <Table.Thead>
           <Table.Tr>
-            <Table.Th><Group gap={4}><IconCalendarEvent size={14} />Date Received</Group></Table.Th>
-            <Table.Th><Group gap={4}><IconClock size={14} />Time Received</Group></Table.Th>
-            <Table.Th><Group gap={4}><IconCategory size={14} />Type</Group></Table.Th>
-            <Table.Th><Group gap={4}><IconBuildingHospital size={14} />Ward Name</Group></Table.Th>
-            <Table.Th><Group gap={4}><IconPill size={14} />Rx</Group></Table.Th>
-            <Table.Th><Group gap={4}><IconCheckbox size={14} />Counterchecked</Group></Table.Th>
-            <Table.Th><Group gap={4}><IconCalendarCheck size={14} />Date Completed</Group></Table.Th>
-            <Table.Th><Group gap={4}><IconClock size={14} />Time Completed</Group></Table.Th>
-            <Table.Th><Group gap={4}><IconHourglass size={14} />Total Time</Group></Table.Th>
-            <Table.Th><Group gap={4}><IconTarget size={14} />Policy</Group></Table.Th>
+            <Table.Th><Group gap="3xs"><IconCalendarEvent size={14} />Date Received</Group></Table.Th>
+            <Table.Th><Group gap="3xs"><IconClock size={14} />Time Received</Group></Table.Th>
+            <Table.Th><Group gap="3xs"><IconCategory size={14} />Type</Group></Table.Th>
+            <Table.Th><Group gap="3xs"><IconBuildingHospital size={14} />Ward Name</Group></Table.Th>
+            <Table.Th><Group gap="3xs"><IconPill size={14} />Rx</Group></Table.Th>
+            <Table.Th><Group gap="3xs"><IconCheckbox size={14} />Counterchecked</Group></Table.Th>
+            <Table.Th><Group gap="3xs"><IconCalendarCheck size={14} />Date Completed</Group></Table.Th>
+            <Table.Th><Group gap="3xs"><IconClock size={14} />Time Completed</Group></Table.Th>
+            <Table.Th><Group gap="3xs"><IconHourglass size={14} />Total Time</Group></Table.Th>
+            <Table.Th><Group gap="3xs"><IconTarget size={14} />Policy</Group></Table.Th>
             <Table.Th>Actions</Table.Th>
           </Table.Tr>
         </Table.Thead>
@@ -428,7 +428,7 @@ export default function IndentsPage() {
                 <Table.Td onClick={() => openEditModal(indent)}>{indent.timeCompleted ? to12h(indent.timeCompleted) : '\u2014'}</Table.Td>
                 <Table.Td onClick={() => openEditModal(indent)}>
                   {elapsed !== null ? (
-                    <Group gap={4}>
+                    <Group gap="3xs">
                       {isNearLimit && <IconAlertCircle size={14} color={isUrgent ? 'red' : 'orange'} />}
                       <Text c={exceeded ? 'red' : isNearLimit ? (isUrgent ? 'red' : 'orange') : undefined} fw={(exceeded || isNearLimit) ? 700 : undefined}>
                         {elapsed}

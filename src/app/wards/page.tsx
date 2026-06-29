@@ -113,7 +113,7 @@ export default function WardsPage() {
       <Table striped highlightOnHover withTableBorder>
         <Table.Thead>
           <Table.Tr>
-            <Table.Th><Group gap={4}><IconBuildingHospital size={14} />Ward Name</Group></Table.Th>
+            <Table.Th><Group gap="3xs"><IconBuildingHospital size={14} />Ward Name</Group></Table.Th>
             <Table.Th>Actions</Table.Th>
           </Table.Tr>
         </Table.Thead>

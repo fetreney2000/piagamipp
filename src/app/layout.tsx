@@ -5,6 +5,7 @@ import '@mantine/dates/styles.css';
 import '@mantine/charts/styles.css';
 import '@mantine/notifications/styles.css';
 import '../../style.css';
+import './globals.css';
 
 import { MantineProvider, AppShell, Group, Title, ActionIcon, Text, NavLink } from '@mantine/core';
 import { shadcnTheme } from '../../theme';

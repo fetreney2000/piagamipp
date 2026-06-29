@@ -111,42 +111,42 @@ export default function ReportsPage() {
     return (
       <SimpleGrid cols={{ base: 2, md: 3 }} mb="lg">
         <Card withBorder padding="sm">
-          <Group gap="xs" mb={4}>
+          <Group gap="xs" mb="3xs">
             <IconFileDescription size={16} />
             <Text size="xs" c="dimmed">Total Indents</Text>
           </Group>
           <Text fw={700} size="xl">{stats.totalIndents}</Text>
         </Card>
         <Card withBorder padding="sm">
-          <Group gap="xs" mb={4}>
+          <Group gap="xs" mb="3xs">
             <IconClockCheck size={16} />
             <Text size="xs" c="dimmed">Within 2 Hours</Text>
           </Group>
           <Text fw={700} size="xl" c="green">{stats.under120}</Text>
         </Card>
         <Card withBorder padding="sm">
-          <Group gap="xs" mb={4}>
+          <Group gap="xs" mb="3xs">
             <IconClockExclamation size={16} />
             <Text size="xs" c="dimmed">Exceeding 2 Hours</Text>
           </Group>
           <Text fw={700} size="xl" c="red">{stats.over120}</Text>
         </Card>
         <Card withBorder padding="sm">
-          <Group gap="xs" mb={4}>
+          <Group gap="xs" mb="3xs">
             <IconPercentage size={16} />
             <Text size="xs" c="dimmed">Compliance Rate</Text>
           </Group>
           <Text fw={700} size="xl" c={complianceColor}>{stats.complianceRate.toFixed(1)}%</Text>
         </Card>
         <Card withBorder padding="sm">
-          <Group gap="xs" mb={4}>
+          <Group gap="xs" mb="3xs">
             <IconClockHour4 size={16} />
             <Text size="xs" c="dimmed">Average Time (min)</Text>
           </Group>
           <Text fw={700} size="xl">{stats.averageTime.toFixed(1)}</Text>
         </Card>
         <Card withBorder padding="sm">
-          <Group gap="xs" mb={4}>
+          <Group gap="xs" mb="3xs">
             <IconChartInfographic size={16} />
             <Text size="xs" c="dimmed">Median Time (min)</Text>
           </Group>
