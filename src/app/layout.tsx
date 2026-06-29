@@ -4,8 +4,11 @@ import '@mantine/core/styles.css';
 import '@mantine/dates/styles.css';
 import '@mantine/charts/styles.css';
 import '@mantine/notifications/styles.css';
+import '../../style.css';
 
 import { MantineProvider, AppShell, Group, Title, ActionIcon, Text, NavLink } from '@mantine/core';
+import { shadcnTheme } from '../../theme';
+import { shadcnCssVariableResolver } from '../../cssVariableResolver';
 import { ModalsProvider } from '@mantine/modals';
 import { Notifications } from '@mantine/notifications';
 import { useDisclosure } from '@mantine/hooks';
@@ -30,7 +33,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   return (
-    <MantineProvider forceColorScheme="light">
+    <MantineProvider forceColorScheme="light" theme={shadcnTheme} cssVariablesResolver={shadcnCssVariableResolver}>
       <ModalsProvider>
         <Notifications />
         <AppShell
