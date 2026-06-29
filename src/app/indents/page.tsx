@@ -80,18 +80,6 @@ function to12h(time: string): string {
   return `${h12}:${m} ${period}`;
 }
 
-function to24h(time: string): string {
-  if (!time) return '';
-  const match = time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-  if (!match) return time;
-  let h = parseInt(match[1], 10);
-  const m = match[2];
-  const p = match[3].toUpperCase();
-  if (p === 'PM' && h !== 12) h += 12;
-  if (p === 'AM' && h === 12) h = 0;
-  return `${h.toString().padStart(2, '0')}:${m}`;
-}
-
 function toDateOrNull(v: Date | string | null): Date | null {
   if (v === null || v === undefined) return null;
   if (v instanceof Date) return v;
@@ -495,8 +483,8 @@ export default function IndentsPage() {
           />
           <TimePicker
             label="Time Received"
-            value={form.values.timeReceived ? to12h(form.values.timeReceived) : ''}
-            onChange={(v) => form.setFieldValue('timeReceived', to24h(v))}
+            value={form.values.timeReceived}
+            onChange={(v) => form.setFieldValue('timeReceived', v)}
             withDropdown
             format="12h"
             mb="sm"
