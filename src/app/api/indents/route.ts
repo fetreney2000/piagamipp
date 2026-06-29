@@ -11,8 +11,6 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type');
     const ward = searchParams.get('ward');
     const policy = searchParams.get('policy');
-    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
-    const limit = Math.min(200, Math.max(1, parseInt(searchParams.get('limit') || '50')));
 
     const filter: Record<string, unknown> = {};
     if (month && year) {
@@ -39,22 +37,17 @@ export async function GET(request: NextRequest) {
       filter.counterchecked = false;
     }
 
-    const [indents, total] = await Promise.all([
-      db.collection('indents')
-        .find(filter, {
-          projection: {
-            _id: 1, dateReceived: 1, timeReceived: 1, type: 1,
-            wardName: 1, numberOfRx: 1, counterchecked: 1,
-            dateCompleted: 1, timeCompleted: 1, totalTimeMinutes: 1,
-          },
-        })
-        .sort({ dateReceived: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .toArray(),
-      db.collection('indents').countDocuments(filter),
-    ]);
-    return NextResponse.json({ indents, total, page, limit, pages: Math.ceil(total / limit) });
+    const indents = await db.collection('indents')
+      .find(filter, {
+        projection: {
+          _id: 1, dateReceived: 1, timeReceived: 1, type: 1,
+          wardName: 1, numberOfRx: 1, counterchecked: 1,
+          dateCompleted: 1, timeCompleted: 1, totalTimeMinutes: 1,
+        },
+      })
+      .sort({ dateReceived: -1 })
+      .toArray();
+    return NextResponse.json(indents);
   } catch {
     return NextResponse.json({ error: 'Failed to fetch indents' }, { status: 500 });
   }

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import {
-  Button, Table, Badge, Modal, Select, NumberInput, Group, Title, ActionIcon, Text, Switch, SimpleGrid, Pagination,
+  Button, Table, Badge, Modal, Select, NumberInput, Group, Title, ActionIcon, Text, Switch, SimpleGrid,
 } from '@mantine/core';
 import { DatePickerInput, MonthPickerInput, TimePicker } from '@mantine/dates';
 import { useForm } from '@mantine/form';
@@ -100,8 +100,6 @@ export default function IndentsPage() {
   });
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [, forceUpdate] = useState(0);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const warningsShown = useRef<Set<string>>(new Set());
   const indentsRef = useRef(indents);
   indentsRef.current = indents;
@@ -175,13 +173,11 @@ export default function IndentsPage() {
       params.set('month', String(m));
       params.set('year', String(y));
     }
-    params.set('page', String(page));
     const qs = params.toString();
     const res = await fetch(`/api/indents${qs ? `?${qs}` : ''}`, { cache: 'no-store' });
     const data = await res.json();
-    setIndents(data.indents);
-    setTotalPages(data.pages);
-  }, [filterWard, filterPolicy, filterDate, page]);
+    setIndents(data);
+  }, [filterWard, filterPolicy, filterDate]);
 
   const fetchWards = useCallback(async () => {
     const res = await fetch('/api/wards');
@@ -330,7 +326,6 @@ export default function IndentsPage() {
       });
       if (res.ok) {
         showNotification({ title: 'Success', message: 'Indent created', color: 'green' });
-        setPage(1);
         fetchIndents();
         setModalOpened(false);
       } else {
@@ -376,7 +371,7 @@ export default function IndentsPage() {
         <MonthPickerInput
           placeholder="Filter by month"
           value={filterDate}
-          onChange={(v) => { setFilterDate(toDateOrNull(v)); setPage(1); }}
+          onChange={(v) => setFilterDate(toDateOrNull(v))}
           clearable
           leftSection={<IconCalendarSearch size={16} />}
         />
@@ -384,7 +379,7 @@ export default function IndentsPage() {
           placeholder="Filter by ward"
           data={wards.map((w) => ({ value: w.name, label: w.name }))}
           value={filterWard}
-          onChange={(v) => { setFilterWard(v); setPage(1); }}
+          onChange={setFilterWard}
           clearable
           searchable
           leftSection={<IconBuildingHospital size={16} />}
@@ -397,7 +392,7 @@ export default function IndentsPage() {
             { value: 'pending', label: 'Pending' },
           ]}
           value={filterPolicy}
-          onChange={(v) => { setFilterPolicy(v); setPage(1); }}
+          onChange={setFilterPolicy}
           clearable
           leftSection={<IconFilterCheck size={16} />}
         />
@@ -477,12 +472,6 @@ export default function IndentsPage() {
           })}
         </Table.Tbody>
       </Table>
-
-      {totalPages > 1 && (
-        <Group justify="center" mt="md">
-          <Pagination total={totalPages} value={page} onChange={setPage} />
-        </Group>
-      )}
 
       <Modal
         opened={modalOpened}
