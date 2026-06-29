@@ -68,6 +68,30 @@ const typeLabels: Record<string, string> = {
   on_call: 'On Call',
 };
 
+function to12h(time: string): string {
+  if (!time) return '';
+  const parts = time.split(':');
+  if (parts.length < 2) return time;
+  const h = parseInt(parts[0], 10);
+  const m = parts[1];
+  if (isNaN(h)) return time;
+  const period = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${m} ${period}`;
+}
+
+function to24h(time: string): string {
+  if (!time) return '';
+  const match = time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return time;
+  let h = parseInt(match[1], 10);
+  const m = match[2];
+  const p = match[3].toUpperCase();
+  if (p === 'PM' && h !== 12) h += 12;
+  if (p === 'AM' && h === 12) h = 0;
+  return `${h.toString().padStart(2, '0')}:${m}`;
+}
+
 function toDateOrNull(v: Date | string | null): Date | null {
   if (v === null || v === undefined) return null;
   if (v instanceof Date) return v;
@@ -400,7 +424,7 @@ export default function IndentsPage() {
             return (
               <Table.Tr key={indent._id} style={{ cursor: 'pointer', backgroundColor: isUrgent ? 'var(--mantine-color-red-0)' : isNearLimit ? 'var(--mantine-color-orange-0)' : undefined }}>
                 <Table.Td onClick={() => openEditModal(indent)}>{formatDate(indent.dateReceived)}</Table.Td>
-                <Table.Td onClick={() => openEditModal(indent)}>{indent.timeReceived}</Table.Td>
+                <Table.Td onClick={() => openEditModal(indent)}>{to12h(indent.timeReceived)}</Table.Td>
                 <Table.Td onClick={() => openEditModal(indent)}>{typeLabels[indent.type] || indent.type}</Table.Td>
                 <Table.Td onClick={() => openEditModal(indent)}>{indent.wardName}</Table.Td>
                 <Table.Td onClick={() => openEditModal(indent)}>{indent.numberOfRx}</Table.Td>
@@ -413,7 +437,7 @@ export default function IndentsPage() {
                   />
                 </Table.Td>
                 <Table.Td onClick={() => openEditModal(indent)}>{formatDate(indent.dateCompleted)}</Table.Td>
-                <Table.Td onClick={() => openEditModal(indent)}>{indent.timeCompleted || '\u2014'}</Table.Td>
+                <Table.Td onClick={() => openEditModal(indent)}>{indent.timeCompleted ? to12h(indent.timeCompleted) : '\u2014'}</Table.Td>
                 <Table.Td onClick={() => openEditModal(indent)}>
                   {elapsed !== null ? (
                     <Group gap={4}>
@@ -471,9 +495,10 @@ export default function IndentsPage() {
           />
           <TimePicker
             label="Time Received"
-            value={form.values.timeReceived}
-            onChange={(v) => form.setFieldValue('timeReceived', v)}
+            value={form.values.timeReceived ? to12h(form.values.timeReceived) : ''}
+            onChange={(v) => form.setFieldValue('timeReceived', to24h(v))}
             withDropdown
+            format="12h"
             mb="sm"
             leftSection={<IconClock size={16} />}
           />
