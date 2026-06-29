@@ -38,29 +38,18 @@ export async function GET(request: NextRequest) {
     const results = await db.collection('indents').aggregate(pipeline).toArray();
     const buckets = results as Array<{ _id: number | string; count: number }>;
 
+    const labels = ['0-30 min', '31-60 min', '61-90 min', '91-120 min', '121-150 min', '151-180 min', '180+ min'];
     const boundaries = [0, 31, 61, 91, 121, 151, 181];
-    const labels = [
-      '0-30 min',
-      '31-60 min',
-      '61-90 min',
-      '91-120 min',
-      '121-150 min',
-      '151-180 min',
-      '180+ min',
-    ];
 
+    const bucketMap = new Map(buckets.map((b) => [b._id, b.count]));
     const distribution = labels.map((label, i) => {
-      let id: number | string;
-      if (i < boundaries.length) {
-        id = boundaries[i];
-      } else {
-        id = '180+ min';
-      }
-      const found = buckets.find((b) => b._id === id);
-      return { range: label, count: found ? found.count : 0 };
+      const id = i < boundaries.length ? boundaries[i] : '180+ min';
+      return { range: label, count: bucketMap.get(id) ?? 0 };
     });
 
-    return NextResponse.json(distribution);
+    return NextResponse.json(distribution, {
+      headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600' },
+    });
   } catch {
     return NextResponse.json({ error: 'Failed to fetch distribution' }, { status: 500 });
   }

@@ -8,6 +8,15 @@ const SABAH_SUPPLEMENTAL: Array<{ month: number; day: number }> = [
 ];
 
 const cache: Map<string, boolean> = new Map();
+const MAX_CACHE_SIZE = 366;
+
+function setCache(key: string, value: boolean): void {
+  if (cache.size >= MAX_CACHE_SIZE) {
+    const firstKey = cache.keys().next().value;
+    if (firstKey !== undefined) cache.delete(firstKey);
+  }
+  cache.set(key, value);
+}
 
 export async function isSabahPublicHoliday(dateStr: string): Promise<boolean> {
   const cached = cache.get(dateStr);
@@ -20,16 +29,16 @@ export async function isSabahPublicHoliday(dateStr: string): Promise<boolean> {
   try {
     const result = hd.isHoliday(date);
     if (result !== false) {
-      cache.set(dateStr, true);
+      setCache(dateStr, true);
       return true;
     }
     for (const h of SABAH_SUPPLEMENTAL) {
       if (h.month === m && h.day === d) {
-        cache.set(dateStr, true);
+        setCache(dateStr, true);
         return true;
       }
     }
-    cache.set(dateStr, false);
+    setCache(dateStr, false);
     return false;
   } catch {
     // Tier 2: Nager.Date API — does not include Malaysia, skip
@@ -46,7 +55,7 @@ export async function isSabahPublicHoliday(dateStr: string): Promise<boolean> {
       if (holidays) {
         for (const h of holidays) {
           if (h.date.iso === dateStr) {
-            cache.set(dateStr, true);
+            setCache(dateStr, true);
             return true;
           }
         }
@@ -56,6 +65,6 @@ export async function isSabahPublicHoliday(dateStr: string): Promise<boolean> {
     }
   }
 
-  cache.set(dateStr, false);
+  setCache(dateStr, false);
   return false;
 }

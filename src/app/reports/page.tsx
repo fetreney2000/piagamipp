@@ -66,24 +66,24 @@ export default function ReportsPage() {
     setLoading(true);
     const month = date.getMonth() + 1;
     const year = date.getFullYear();
-    const results: Record<string, GroupStats> = {};
 
-    for (const group of groups) {
-      let url = `/api/indents/stats?month=${month}&year=${year}`;
-      if (group.type) url += `&type=${group.type}`;
-      const res = await fetch(url);
-      results[group.value] = await res.json();
-    }
-
-    setStatsMap(results);
-
-    const [wardRes, distRes] = await Promise.all([
-      fetch(`/api/indents/per-ward?month=${month}&year=${year}`),
-      fetch(`/api/indents/distribution?month=${month}&year=${year}`),
+    const [statsResults, wardData, distData] = await Promise.all([
+      Promise.all(
+        groups.map((group) => {
+          let url = `/api/indents/stats?month=${month}&year=${year}`;
+          if (group.type) url += `&type=${group.type}`;
+          return fetch(url).then((r) => r.json());
+        })
+      ),
+      fetch(`/api/indents/per-ward?month=${month}&year=${year}`).then((r) => r.ok ? r.json() : []),
+      fetch(`/api/indents/distribution?month=${month}&year=${year}`).then((r) => r.ok ? r.json() : []),
     ]);
 
-    setWardData(wardRes.ok ? await wardRes.json() : []);
-    setDistribution(distRes.ok ? await distRes.json() : []);
+    const results: Record<string, GroupStats> = {};
+    groups.forEach((g, i) => { results[g.value] = statsResults[i]; });
+    setStatsMap(results);
+    setWardData(wardData);
+    setDistribution(distData);
 
     setLoading(false);
   }, [date]);

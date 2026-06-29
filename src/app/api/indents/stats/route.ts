@@ -2,16 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/mongodb';
 import { createUTCDate } from '@/lib/timezone';
 
-function median(values: number[]): number {
-  if (values.length === 0) return 0;
-  const sorted = [...values].sort((a, b) => a - b);
-  const mid = Math.floor(sorted.length / 2);
-  if (sorted.length % 2 === 0) {
-    return (sorted[mid - 1] + sorted[mid]) / 2;
-  }
-  return sorted[mid];
-}
-
 export async function GET(request: NextRequest) {
   try {
     const db = await getDatabase();
@@ -42,7 +32,7 @@ export async function GET(request: NextRequest) {
           completedIndents: { $sum: { $cond: [{ $eq: ['$counterchecked', true] }, 1, 0] } },
           pendingIndents: { $sum: { $cond: [{ $eq: ['$counterchecked', false] }, 1, 0] } },
           totalMinutes: { $sum: { $ifNull: ['$totalTimeMinutes', 0] } },
-          completedTimes: { $push: { $cond: [{ $eq: ['$counterchecked', true] }, '$totalTimeMinutes', null] } },
+          medianTime: { $percentile: { input: '$totalTimeMinutes', p: [0.5], method: 'approximate' } },
           under120: {
             $sum: {
               $cond: [
@@ -77,11 +67,14 @@ export async function GET(request: NextRequest) {
         complianceRate: 0,
         averageTime: 0,
         medianTime: 0,
+      }, {
+        headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600' },
       });
     }
 
     const data = result[0];
-    const completedTimes = data.completedTimes.filter((t: number | null) => t !== null) as number[];
+    const medianArr = data.medianTime as number[] | undefined;
+    const medianTime = medianArr && medianArr.length > 0 ? medianArr[0] : 0;
     const complianceRate = data.completedIndents > 0
       ? (data.under120 / data.completedIndents) * 100
       : 0;
@@ -97,7 +90,9 @@ export async function GET(request: NextRequest) {
       over120: data.over120,
       complianceRate: Math.round(complianceRate * 100) / 100,
       averageTime: Math.round(averageTime * 100) / 100,
-      medianTime: Math.round(median(completedTimes) * 100) / 100,
+      medianTime: Math.round(medianTime * 100) / 100,
+    }, {
+      headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600' },
     });
   } catch {
     return NextResponse.json({ error: 'Failed to fetch stats' }, { status: 500 });
