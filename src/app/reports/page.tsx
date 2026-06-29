@@ -1,14 +1,14 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Tabs, Card, Text, SimpleGrid, Title, Group, Center } from '@mantine/core';
+import { Tabs, Card, Text, SimpleGrid, Title, Group, Center, Paper } from '@mantine/core';
 import { BarChart } from '@mantine/charts';
 import { MonthPickerInput } from '@mantine/dates';
 import { getMYTCurrentDateTime } from '@/lib/timezone';
 import {
   IconReportAnalytics, IconCalendarMonth, IconCategory, IconClock, IconMoonStars, IconPhoneCall,
   IconFileDescription, IconClockCheck, IconClockExclamation, IconPercentage, IconClockHour4,
-  IconChartInfographic, IconChartBar,
+  IconChartInfographic, IconChartBar, IconBuildingHospital, IconChartHistogram,
 } from '@tabler/icons-react';
 
 interface GroupStats {
@@ -19,6 +19,22 @@ interface GroupStats {
   complianceRate: number;
   averageTime: number;
   medianTime: number;
+}
+
+interface WardStats {
+  wardName: string;
+  totalIndents: number;
+  completedIndents: number;
+  under120: number;
+  over120: number;
+  complianceRate: number;
+  averageTime: number;
+  medianTime: number;
+}
+
+interface DistributionItem {
+  range: string;
+  count: number;
 }
 
 const groups = [
@@ -36,6 +52,8 @@ function toDateOrNull(v: Date | string | null): Date | null {
 
 export default function ReportsPage() {
   const [statsMap, setStatsMap] = useState<Record<string, GroupStats>>({});
+  const [wardData, setWardData] = useState<WardStats[]>([]);
+  const [distribution, setDistribution] = useState<DistributionItem[]>([]);
   const [date, setDate] = useState<Date | null>(() => {
     const { date } = getMYTCurrentDateTime();
     const [y, m, d] = date.split('-').map(Number);
@@ -43,7 +61,7 @@ export default function ReportsPage() {
   });
   const [loading, setLoading] = useState(true);
 
-  const fetchAllStats = useCallback(async () => {
+  const fetchAllData = useCallback(async () => {
     if (!date) return;
     setLoading(true);
     const month = date.getMonth() + 1;
@@ -58,20 +76,36 @@ export default function ReportsPage() {
     }
 
     setStatsMap(results);
+
+    const [wardRes, distRes] = await Promise.all([
+      fetch(`/api/indents/per-ward?month=${month}&year=${year}`),
+      fetch(`/api/indents/distribution?month=${month}&year=${year}`),
+    ]);
+
+    setWardData(wardRes.ok ? await wardRes.json() : []);
+    setDistribution(distRes.ok ? await distRes.json() : []);
+
     setLoading(false);
   }, [date]);
 
   useEffect(() => {
-    fetchAllStats();
-  }, [fetchAllStats]);
+    fetchAllData();
+  }, [fetchAllData]);
 
   const chartData = groups.map((g) => ({
     group: g.label,
-    '<= 2 Hours': statsMap[g.value]?.under120 || 0,
-    '> 2 Hours': statsMap[g.value]?.over120 || 0,
+    'Within 2 Hours': statsMap[g.value]?.under120 || 0,
+    'Exceeding 2 Hours': statsMap[g.value]?.over120 || 0,
   }));
 
-    const renderStats = (stats: GroupStats | undefined) => {
+  const wardChartData = [...wardData]
+    .sort((a, b) => a.complianceRate - b.complianceRate)
+    .map((w) => ({
+      ward: w.wardName,
+      'Compliance Rate': w.complianceRate,
+    }));
+
+  const renderStats = (stats: GroupStats | undefined) => {
     if (!stats) return null;
     const complianceColor = stats.complianceRate >= 80 ? 'green' : 'red';
     return (
@@ -86,14 +120,14 @@ export default function ReportsPage() {
         <Card withBorder padding="sm">
           <Group gap="xs" mb={4}>
             <IconClockCheck size={16} />
-            <Text size="xs" c="dimmed">{"<="} 2 Hours</Text>
+            <Text size="xs" c="dimmed">Within 2 Hours</Text>
           </Group>
           <Text fw={700} size="xl" c="green">{stats.under120}</Text>
         </Card>
         <Card withBorder padding="sm">
           <Group gap="xs" mb={4}>
             <IconClockExclamation size={16} />
-            <Text size="xs" c="dimmed">{'>'} 2 Hours</Text>
+            <Text size="xs" c="dimmed">Exceeding 2 Hours</Text>
           </Group>
           <Text fw={700} size="xl" c="red">{stats.over120}</Text>
         </Card>
@@ -155,18 +189,61 @@ export default function ReportsPage() {
 
           <Group gap="xs" mt="xl" mb="md">
             <IconChartBar size={24} />
-            <Title order={3}>Comparison Chart</Title>
+            <Title order={3}>Comparison by Category</Title>
           </Group>
           <BarChart
             h={300}
             data={chartData}
             dataKey="group"
             series={[
-              { name: '<= 2 Hours', color: 'green' },
-              { name: '> 2 Hours', color: 'red' },
+              { name: 'Within 2 Hours', color: 'green' },
+              { name: 'Exceeding 2 Hours', color: 'red' },
             ]}
             tickLine="y"
           />
+
+          {wardChartData.length > 0 && (
+            <>
+              <Group gap="xs" mt="xl" mb="md">
+                <IconBuildingHospital size={24} />
+                <Title order={3}>Compliance by Ward</Title>
+              </Group>
+              <Paper withBorder p="md" radius="md">
+                <BarChart
+                  h={Math.max(200, wardChartData.length * 50)}
+                  data={wardChartData}
+                  dataKey="ward"
+                  series={[
+                    { name: 'Compliance Rate', color: 'blue.6' },
+                  ]}
+                  tickLine="y"
+                  valueFormatter={(v) => `${v}%`}
+                  withBarValueLabel
+                />
+              </Paper>
+            </>
+          )}
+
+          {distribution.length > 0 && (
+            <>
+              <Group gap="xs" mt="xl" mb="md">
+                <IconChartHistogram size={24} />
+                <Title order={3}>Completion Time Distribution</Title>
+              </Group>
+              <Paper withBorder p="md" radius="md">
+                <BarChart
+                  h={300}
+                  data={distribution}
+                  dataKey="range"
+                  series={[
+                    { name: 'count', label: 'Indents', color: 'violet.6' },
+                  ]}
+                  tickLine="y"
+                  withBarValueLabel
+                />
+              </Paper>
+            </>
+          )}
         </>
       )}
     </>

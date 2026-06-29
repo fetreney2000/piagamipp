@@ -120,7 +120,7 @@ export default function IndentsPage() {
             playWarningSound();
             showNotification({
               title: '15 Minutes Remaining',
-              message: `Indent #${indent.wardName} is approaching the 2-hour limit.`,
+              message: `Indent for ${indent.wardName} is approaching the 2-hour limit.`,
               color: 'orange',
               icon: <IconAlertCircle size={16} />,
             });
@@ -132,7 +132,7 @@ export default function IndentsPage() {
             playWarningSound();
             showNotification({
               title: '5 Minutes Remaining!',
-              message: `Indent #${indent.wardName} is nearing the 2-hour limit!`,
+              message: `Indent for ${indent.wardName} is nearing the 2-hour limit!`,
               color: 'red',
               icon: <IconAlertCircle size={16} />,
             });
@@ -240,7 +240,7 @@ export default function IndentsPage() {
     });
     setTogglingId(null);
     if (res.ok) {
-      showNotification({ title: 'Success', message: checked ? 'Indent counterchecked' : 'Countercheck undone', color: 'green' });
+      showNotification({ title: 'Success', message: checked ? 'Indent counterchecked' : 'Countercheck cleared', color: 'green' });
       fetchIndents();
     } else {
       showNotification({ title: 'Error', message: 'Failed to update countercheck status', color: 'red' });

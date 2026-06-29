@@ -7,7 +7,7 @@ const SABAH_SUPPLEMENTAL: Array<{ month: number; day: number }> = [
   { month: 5, day: 31 },
 ];
 
-let cache: Map<string, boolean> = new Map();
+const cache: Map<string, boolean> = new Map();
 
 export async function isSabahPublicHoliday(dateStr: string): Promise<boolean> {
   const cached = cache.get(dateStr);

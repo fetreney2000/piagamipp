@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
           _id: null,
           totalIndents: { $sum: 1 },
           completedIndents: { $sum: { $cond: [{ $eq: ['$counterchecked', true] }, 1, 0] } },
+          pendingIndents: { $sum: { $cond: [{ $eq: ['$counterchecked', false] }, 1, 0] } },
           totalMinutes: { $sum: { $ifNull: ['$totalTimeMinutes', 0] } },
           completedTimes: { $push: { $cond: [{ $eq: ['$counterchecked', true] }, '$totalTimeMinutes', null] } },
           under120: {
@@ -70,6 +71,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         totalIndents: 0,
         completedIndents: 0,
+        pendingIndents: 0,
         under120: 0,
         over120: 0,
         complianceRate: 0,
@@ -90,6 +92,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       totalIndents: data.totalIndents,
       completedIndents: data.completedIndents,
+      pendingIndents: data.pendingIndents,
       under120: data.under120,
       over120: data.over120,
       complianceRate: Math.round(complianceRate * 100) / 100,
