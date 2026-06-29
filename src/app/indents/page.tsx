@@ -177,7 +177,7 @@ export default function IndentsPage() {
     }
     params.set('page', String(page));
     const qs = params.toString();
-    const res = await fetch(`/api/indents${qs ? `?${qs}` : ''}`);
+    const res = await fetch(`/api/indents${qs ? `?${qs}` : ''}`, { cache: 'no-store' });
     const data = await res.json();
     setIndents(data.indents);
     setTotalPages(data.pages);
@@ -330,6 +330,7 @@ export default function IndentsPage() {
       });
       if (res.ok) {
         showNotification({ title: 'Success', message: 'Indent created', color: 'green' });
+        setPage(1);
         fetchIndents();
         setModalOpened(false);
       } else {
