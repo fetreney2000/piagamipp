@@ -54,9 +54,7 @@ export async function GET(request: NextRequest) {
         .toArray(),
       db.collection('indents').countDocuments(filter),
     ]);
-    return NextResponse.json({ indents, total, page, limit, pages: Math.ceil(total / limit) }, {
-      headers: { 'Cache-Control': 'no-cache' },
-    });
+    return NextResponse.json({ indents, total, page, limit, pages: Math.ceil(total / limit) });
   } catch {
     return NextResponse.json({ error: 'Failed to fetch indents' }, { status: 500 });
   }

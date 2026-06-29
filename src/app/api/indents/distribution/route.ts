@@ -47,9 +47,7 @@ export async function GET(request: NextRequest) {
       return { range: label, count: bucketMap.get(id) ?? 0 };
     });
 
-    return NextResponse.json(distribution, {
-      headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600' },
-    });
+    return NextResponse.json(distribution);
   } catch {
     return NextResponse.json({ error: 'Failed to fetch distribution' }, { status: 500 });
   }

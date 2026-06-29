@@ -88,10 +88,7 @@ export async function GET(request: NextRequest) {
           averageTime: Math.round(averageTime * 100) / 100,
           medianTime: Math.round(medianTime * 100) / 100,
         };
-      }),
-      {
-        headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600' },
-      }
+      })
     );
   } catch {
     return NextResponse.json({ error: 'Failed to fetch per-ward stats' }, { status: 500 });

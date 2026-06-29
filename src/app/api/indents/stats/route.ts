@@ -67,8 +67,6 @@ export async function GET(request: NextRequest) {
         complianceRate: 0,
         averageTime: 0,
         medianTime: 0,
-      }, {
-        headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600' },
       });
     }
 
@@ -91,8 +89,6 @@ export async function GET(request: NextRequest) {
       complianceRate: Math.round(complianceRate * 100) / 100,
       averageTime: Math.round(averageTime * 100) / 100,
       medianTime: Math.round(medianTime * 100) / 100,
-    }, {
-      headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600' },
     });
   } catch {
     return NextResponse.json({ error: 'Failed to fetch stats' }, { status: 500 });
