@@ -197,7 +197,7 @@ export default function IndentsPage() {
       if (!document.hidden) {
         fetchIndents();
       }
-    }, 120000);
+    }, 300000);
     return () => clearInterval(interval);
   }, [fetchIndents, modalOpened]);
 
