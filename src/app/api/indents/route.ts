@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
           dateCompleted: 1, timeCompleted: 1, totalTimeMinutes: 1,
         },
       })
-      .sort({ dateReceived: -1 })
+      .sort({ dateReceived: -1, timeReceived: -1 })
       .toArray();
     return NextResponse.json(indents);
   } catch {
