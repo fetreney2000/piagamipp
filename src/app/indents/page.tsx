@@ -99,6 +99,7 @@ export default function IndentsPage() {
     return new Date(y, m - 1);
   });
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const typeManuallySet = useRef(false);
   const [, forceUpdate] = useState(0);
   const warningsShown = useRef<Set<string>>(new Set());
   const indentsRef = useRef(indents);
@@ -212,7 +213,7 @@ export default function IndentsPage() {
   }, [fetchIndents, modalOpened]);
 
   useEffect(() => {
-    if (editing) return;
+    if (editing || typeManuallySet.current) return;
     const date = form.values.dateReceived;
     const time = form.values.timeReceived;
     if (!date || !time) return;
@@ -262,6 +263,7 @@ export default function IndentsPage() {
   const openAddModal = () => {
     setEditing(null);
     form.reset();
+    typeManuallySet.current = false;
     const { date, time } = getMYTCurrentDateTime();
     const [y, m, d] = date.split('-').map(Number);
     form.setValues({
@@ -511,6 +513,10 @@ export default function IndentsPage() {
               { value: 'on_call', label: 'On Call' },
             ]}
             {...form.getInputProps('type')}
+            onChange={(value) => {
+              typeManuallySet.current = true;
+              form.setFieldValue('type', value ?? '');
+            }}
             mb="sm"
             leftSection={<IconCategory size={16} />}
           />
