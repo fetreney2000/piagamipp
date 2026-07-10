@@ -29,13 +29,17 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (body.wardName !== undefined) updateData.wardName = body.wardName;
     if (body.numberOfRx !== undefined) updateData.numberOfRx = parseInt(body.numberOfRx);
     if (body.counterchecked !== undefined) {
+      const existing = await db.collection('indents').findOne({ _id: new ObjectId(id) });
+      const wasAlreadyCounterchecked = existing?.counterchecked === true;
+
       updateData.counterchecked = body.counterchecked;
-      if (body.counterchecked === true) {
+
+      if (body.counterchecked === true && !wasAlreadyCounterchecked) {
+        // Newly counterchecked — record completion time
         const { date, time } = getMYTCurrentDateTime();
         updateData.dateCompleted = new Date(date);
         updateData.timeCompleted = time.slice(0, 5);
 
-        const existing = await db.collection('indents').findOne({ _id: new ObjectId(id) });
         if (existing) {
           updateData.totalTimeMinutes = calculateMinutes(
             existing.dateReceived,
@@ -44,11 +48,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
             updateData.timeCompleted as string
           );
         }
-      } else {
+      } else if (body.counterchecked === false) {
+        // Countercheck removed — clear completion fields
         updateData.dateCompleted = null;
         updateData.timeCompleted = null;
         updateData.totalTimeMinutes = null;
       }
+      // If already counterchecked and still true — do not touch completion fields
     }
 
     if (body.dateCompleted !== undefined && body.timeCompleted !== undefined && body.counterchecked === undefined) {
