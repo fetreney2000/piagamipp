@@ -161,6 +161,8 @@ export default function IndentsPage() {
       wardName: '',
       numberOfRx: 1,
       counterchecked: false,
+      dateCompleted: null as Date | null,
+      timeCompleted: '',
     },
   });
 
@@ -282,6 +284,8 @@ export default function IndentsPage() {
       wardName: indent.wardName,
       numberOfRx: indent.numberOfRx,
       counterchecked: indent.counterchecked,
+      dateCompleted: indent.dateCompleted ? new Date(indent.dateCompleted) : null,
+      timeCompleted: indent.timeCompleted ?? '',
     });
     setModalOpened(true);
   };
@@ -296,11 +300,13 @@ export default function IndentsPage() {
         numberOfRx: values.numberOfRx,
         counterchecked: values.counterchecked,
       };
-      if (values.counterchecked && !editing.counterchecked) {
-        const { date, time } = getMYTCurrentDateTime();
-        const [y, m, d] = date.split('-').map(Number);
-        payload.dateCompleted = createUTCDate(y, m, d).toISOString();
-        payload.timeCompleted = time.slice(0, 5);
+      if (values.counterchecked && editing.counterchecked) {
+        if (values.dateCompleted) {
+          payload.dateCompleted = values.dateCompleted.toISOString();
+        }
+        if (values.timeCompleted) {
+          payload.timeCompleted = values.timeCompleted;
+        }
       }
       const res = await fetch(`/api/indents/${editing._id}`, {
         method: 'PUT',
@@ -546,6 +552,27 @@ export default function IndentsPage() {
               onLabel={<IconCheckbox size={14} />}
               offLabel={<IconCheckbox size={14} />}
             />
+          )}
+          {editing && editing.counterchecked && form.values.counterchecked && (
+            <>
+              <DatePickerInput
+                label="Date Completed"
+                placeholder="Select date"
+                value={form.values.dateCompleted}
+                onChange={(v) => form.setFieldValue('dateCompleted', toDateOrNull(v))}
+                mb="sm"
+                leftSection={<IconCalendarCheck size={16} />}
+              />
+              <TimePicker
+                label="Time Completed"
+                value={form.values.timeCompleted}
+                onChange={(v) => form.setFieldValue('timeCompleted', v)}
+                withDropdown
+                format="12h"
+                mb="sm"
+                leftSection={<IconClock size={16} />}
+              />
+            </>
           )}
           <Group justify="flex-end" mt="md">
             <Button variant="default" onClick={() => setModalOpened(false)} leftSection={<IconX size={16} />}>Cancel</Button>

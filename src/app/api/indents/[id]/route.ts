@@ -53,21 +53,21 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         updateData.dateCompleted = null;
         updateData.timeCompleted = null;
         updateData.totalTimeMinutes = null;
-      }
-      // If already counterchecked and still true — do not touch completion fields
-    }
-
-    if (body.dateCompleted !== undefined && body.timeCompleted !== undefined && body.counterchecked === undefined) {
-      updateData.dateCompleted = new Date(body.dateCompleted);
-      updateData.timeCompleted = body.timeCompleted;
-      const existing = await db.collection('indents').findOne({ _id: new ObjectId(id) });
-      if (existing) {
-        updateData.totalTimeMinutes = calculateMinutes(
-          existing.dateReceived,
-          existing.timeReceived,
-          updateData.dateCompleted as Date,
-          updateData.timeCompleted as string
-        );
+      } else if (body.counterchecked === true && wasAlreadyCounterchecked) {
+        if (body.dateCompleted !== undefined) updateData.dateCompleted = new Date(body.dateCompleted);
+        if (body.timeCompleted !== undefined) updateData.timeCompleted = body.timeCompleted;
+        if (body.dateCompleted !== undefined || body.timeCompleted !== undefined) {
+          const effectiveDate = (updateData.dateCompleted as Date) ?? existing?.dateCompleted;
+          const effectiveTime = (updateData.timeCompleted as string) ?? existing?.timeCompleted;
+          if (effectiveDate && effectiveTime && existing) {
+            updateData.totalTimeMinutes = calculateMinutes(
+              existing.dateReceived,
+              existing.timeReceived,
+              effectiveDate,
+              effectiveTime
+            );
+          }
+        }
       }
     }
 
