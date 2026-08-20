@@ -10,6 +10,7 @@ import { showNotification } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import { getMYTCurrentDateTime, createUTCDate } from '@/lib/timezone';
 import { determineIndentType } from '@/lib/indent-type';
+import { useLoading } from '@/lib/loading-context';
 import {
   IconClipboardList, IconPlus, IconCalendarSearch, IconBuildingHospital, IconFilterCheck,
   IconCategory, IconClock, IconCalendarEvent, IconPill, IconCheckbox, IconCalendarCheck,
@@ -87,6 +88,7 @@ function toDateOrNull(v: Date | string | null): Date | null {
 }
 
 export default function IndentsPage() {
+  const { showLoading, hideLoading } = useLoading();
   const [indents, setIndents] = useState<Indent[]>([]);
   const [wards, setWards] = useState<Ward[]>([]);
   const [modalOpened, setModalOpened] = useState(false);
@@ -190,9 +192,9 @@ export default function IndentsPage() {
 
   useEffect(() => {
     if (modalOpened) return;
-    fetchIndents();
-    fetchWards();
-  }, [fetchIndents, fetchWards, modalOpened]);
+    showLoading();
+    Promise.all([fetchIndents(), fetchWards()]).finally(() => hideLoading());
+  }, [fetchIndents, fetchWards, modalOpened, showLoading, hideLoading]);
 
   useEffect(() => {
     if (modalOpened) return;
@@ -247,18 +249,23 @@ export default function IndentsPage() {
   }, [editing, form.values.dateReceived, form.values.timeReceived]);
 
   const handleToggleCountercheck = async (indent: Indent, checked: boolean) => {
-    setTogglingId(indent._id);
-    const res = await fetch(`/api/indents/${indent._id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ counterchecked: checked }),
-    });
-    setTogglingId(null);
-    if (res.ok) {
-      showNotification({ title: 'Success', message: checked ? 'Indent counterchecked' : 'Countercheck cleared', color: 'green' });
-      fetchIndents();
-    } else {
-      showNotification({ title: 'Error', message: 'Failed to update countercheck status', color: 'red' });
+    showLoading();
+    try {
+      setTogglingId(indent._id);
+      const res = await fetch(`/api/indents/${indent._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ counterchecked: checked }),
+      });
+      setTogglingId(null);
+      if (res.ok) {
+        showNotification({ title: 'Success', message: checked ? 'Indent counterchecked' : 'Countercheck cleared', color: 'green' });
+        await fetchIndents();
+      } else {
+        showNotification({ title: 'Error', message: 'Failed to update countercheck status', color: 'red' });
+      }
+    } finally {
+      hideLoading();
     }
   };
 
@@ -291,54 +298,59 @@ export default function IndentsPage() {
   };
 
   const handleSubmit = async (values: typeof form.values) => {
-    if (editing) {
-      const payload: Record<string, unknown> = {
-        dateReceived: values.dateReceived?.toISOString(),
-        timeReceived: values.timeReceived,
-        type: values.type,
-        wardName: values.wardName,
-        numberOfRx: values.numberOfRx,
-        counterchecked: values.counterchecked,
-      };
-      if (values.counterchecked && editing.counterchecked) {
-        if (values.dateCompleted) {
-          payload.dateCompleted = values.dateCompleted.toISOString();
-        }
-        if (values.timeCompleted) {
-          payload.timeCompleted = values.timeCompleted;
-        }
-      }
-      const res = await fetch(`/api/indents/${editing._id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (res.ok) {
-        showNotification({ title: 'Success', message: 'Indent updated', color: 'green' });
-        fetchIndents();
-        setModalOpened(false);
-      } else {
-        showNotification({ title: 'Error', message: 'Failed to update indent', color: 'red' });
-      }
-    } else {
-      const res = await fetch('/api/indents', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+    showLoading();
+    try {
+      if (editing) {
+        const payload: Record<string, unknown> = {
           dateReceived: values.dateReceived?.toISOString(),
           timeReceived: values.timeReceived,
           type: values.type,
           wardName: values.wardName,
           numberOfRx: values.numberOfRx,
-        }),
-      });
-      if (res.ok) {
-        showNotification({ title: 'Success', message: 'Indent created', color: 'green' });
-        fetchIndents();
-        setModalOpened(false);
+          counterchecked: values.counterchecked,
+        };
+        if (values.counterchecked && editing.counterchecked) {
+          if (values.dateCompleted) {
+            payload.dateCompleted = values.dateCompleted.toISOString();
+          }
+          if (values.timeCompleted) {
+            payload.timeCompleted = values.timeCompleted;
+          }
+        }
+        const res = await fetch(`/api/indents/${editing._id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+          showNotification({ title: 'Success', message: 'Indent updated', color: 'green' });
+          await fetchIndents();
+          setModalOpened(false);
+        } else {
+          showNotification({ title: 'Error', message: 'Failed to update indent', color: 'red' });
+        }
       } else {
-        showNotification({ title: 'Error', message: 'Failed to create indent', color: 'red' });
+        const res = await fetch('/api/indents', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            dateReceived: values.dateReceived?.toISOString(),
+            timeReceived: values.timeReceived,
+            type: values.type,
+            wardName: values.wardName,
+            numberOfRx: values.numberOfRx,
+          }),
+        });
+        if (res.ok) {
+          showNotification({ title: 'Success', message: 'Indent created', color: 'green' });
+          await fetchIndents();
+          setModalOpened(false);
+        } else {
+          showNotification({ title: 'Error', message: 'Failed to create indent', color: 'red' });
+        }
       }
+    } finally {
+      hideLoading();
     }
   };
 
@@ -349,12 +361,17 @@ export default function IndentsPage() {
       labels: { confirm: 'Delete', cancel: 'Cancel' },
       confirmProps: { color: 'red' },
       onConfirm: async () => {
-        const res = await fetch(`/api/indents/${indent._id}`, { method: 'DELETE' });
-        if (res.ok) {
-          showNotification({ title: 'Success', message: 'Indent deleted', color: 'green' });
-          fetchIndents();
-        } else {
-          showNotification({ title: 'Error', message: 'Failed to delete indent', color: 'red' });
+        showLoading();
+        try {
+          const res = await fetch(`/api/indents/${indent._id}`, { method: 'DELETE' });
+          if (res.ok) {
+            showNotification({ title: 'Success', message: 'Indent deleted', color: 'green' });
+            await fetchIndents();
+          } else {
+            showNotification({ title: 'Error', message: 'Failed to delete indent', color: 'red' });
+          }
+        } finally {
+          hideLoading();
         }
       },
     });

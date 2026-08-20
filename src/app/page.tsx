@@ -5,6 +5,7 @@ import { Card, Text, SimpleGrid, Group, Title, Center, Paper } from '@mantine/co
 import { MonthPickerInput } from '@mantine/dates';
 import { LineChart } from '@mantine/charts';
 import { getMYTCurrentDateTime } from '@/lib/timezone';
+import { useLoading } from '@/lib/loading-context';
 import {
   IconDashboard, IconFileDescription, IconClockCheck, IconClockExclamation,
   IconPercentage, IconClockHour4, IconChartInfographic, IconCalendarMonth,
@@ -37,6 +38,7 @@ function toDateOrNull(v: Date | string | null): Date | null {
 }
 
 export default function DashboardPage() {
+  const { showLoading, hideLoading } = useLoading();
   const [stats, setStats] = useState<Stats | null>(null);
   const [trends, setTrends] = useState<TrendItem[]>([]);
   const [date, setDate] = useState<Date | null>(() => {
@@ -61,9 +63,9 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    fetchStats();
-    fetchTrends();
-  }, [fetchStats, fetchTrends]);
+    showLoading();
+    Promise.all([fetchStats(), fetchTrends()]).finally(() => hideLoading());
+  }, [fetchStats, fetchTrends, showLoading, hideLoading]);
 
   const complianceColor = stats && stats.complianceRate >= 80 ? 'green' : 'red';
 

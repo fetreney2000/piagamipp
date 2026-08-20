@@ -5,6 +5,7 @@ import { Tabs, Card, Text, SimpleGrid, Title, Group, Center, Paper } from '@mant
 import { BarChart } from '@mantine/charts';
 import { MonthPickerInput } from '@mantine/dates';
 import { getMYTCurrentDateTime } from '@/lib/timezone';
+import { useLoading } from '@/lib/loading-context';
 import {
   IconReportAnalytics, IconCalendarMonth, IconCategory, IconClock, IconMoonStars, IconPhoneCall,
   IconFileDescription, IconClockCheck, IconClockExclamation, IconPercentage, IconClockHour4,
@@ -51,6 +52,7 @@ function toDateOrNull(v: Date | string | null): Date | null {
 }
 
 export default function ReportsPage() {
+  const { showLoading, hideLoading } = useLoading();
   const [statsMap, setStatsMap] = useState<Record<string, GroupStats>>({});
   const [wardData, setWardData] = useState<WardStats[]>([]);
   const [distribution, setDistribution] = useState<DistributionItem[]>([]);
@@ -64,29 +66,34 @@ export default function ReportsPage() {
   const fetchAllData = useCallback(async () => {
     if (!date) return;
     setLoading(true);
+    showLoading();
     const month = date.getMonth() + 1;
     const year = date.getFullYear();
 
-    const [statsResults, wardData, distData] = await Promise.all([
-      Promise.all(
-        groups.map((group) => {
-          let url = `/api/indents/stats?month=${month}&year=${year}`;
-          if (group.type) url += `&type=${group.type}`;
-          return fetch(url).then((r) => r.json());
-        })
-      ),
-      fetch(`/api/indents/per-ward?month=${month}&year=${year}`).then((r) => r.ok ? r.json() : []),
-      fetch(`/api/indents/distribution?month=${month}&year=${year}`).then((r) => r.ok ? r.json() : []),
-    ]);
+    try {
+      const [statsResults, wardData, distData] = await Promise.all([
+        Promise.all(
+          groups.map((group) => {
+            let url = `/api/indents/stats?month=${month}&year=${year}`;
+            if (group.type) url += `&type=${group.type}`;
+            return fetch(url).then((r) => r.json());
+          })
+        ),
+        fetch(`/api/indents/per-ward?month=${month}&year=${year}`).then((r) => r.ok ? r.json() : []),
+        fetch(`/api/indents/distribution?month=${month}&year=${year}`).then((r) => r.ok ? r.json() : []),
+      ]);
 
-    const results: Record<string, GroupStats> = {};
-    groups.forEach((g, i) => { results[g.value] = statsResults[i]; });
-    setStatsMap(results);
-    setWardData(wardData);
-    setDistribution(distData);
+      const results: Record<string, GroupStats> = {};
+      groups.forEach((g, i) => { results[g.value] = statsResults[i]; });
+      setStatsMap(results);
+      setWardData(wardData);
+      setDistribution(distData);
 
-    setLoading(false);
-  }, [date]);
+      setLoading(false);
+    } finally {
+      hideLoading();
+    }
+  }, [date, showLoading, hideLoading]);
 
   useEffect(() => {
     fetchAllData();

@@ -7,6 +7,7 @@ import {
 import { useForm } from '@mantine/form';
 import { showNotification } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
+import { useLoading } from '@/lib/loading-context';
 import {
   IconBuildingHospital, IconPlus, IconEdit, IconTrash, IconX, IconDeviceFloppy,
 } from '@tabler/icons-react';
@@ -17,6 +18,7 @@ interface Ward {
 }
 
 export default function WardsPage() {
+  const { showLoading, hideLoading } = useLoading();
   const [wards, setWards] = useState<Ward[]>([]);
   const [modalOpened, setModalOpened] = useState(false);
   const [editing, setEditing] = useState<Ward | null>(null);
@@ -35,8 +37,9 @@ export default function WardsPage() {
   }, []);
 
   useEffect(() => {
-    fetchWards();
-  }, [fetchWards]);
+    showLoading();
+    fetchWards().finally(() => hideLoading());
+  }, [fetchWards, showLoading, hideLoading]);
 
   useEffect(() => {
     if (modalOpened) return;
@@ -56,34 +59,39 @@ export default function WardsPage() {
   };
 
   const handleSubmit = async (values: { name: string }) => {
-    if (editing) {
-      const res = await fetch(`/api/wards/${editing._id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
-      });
-      if (res.ok) {
-        showNotification({ title: 'Success', message: 'Ward updated', color: 'green' });
-        fetchWards();
-        setModalOpened(false);
+    showLoading();
+    try {
+      if (editing) {
+        const res = await fetch(`/api/wards/${editing._id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(values),
+        });
+        if (res.ok) {
+          showNotification({ title: 'Success', message: 'Ward updated', color: 'green' });
+          await fetchWards();
+          setModalOpened(false);
+        } else {
+          const err = await res.json();
+          showNotification({ title: 'Error', message: err.error || 'Failed to update ward', color: 'red' });
+        }
       } else {
-        const err = await res.json();
-        showNotification({ title: 'Error', message: err.error || 'Failed to update ward', color: 'red' });
+        const res = await fetch('/api/wards', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(values),
+        });
+        if (res.ok) {
+          showNotification({ title: 'Success', message: 'Ward created', color: 'green' });
+          await fetchWards();
+          setModalOpened(false);
+        } else {
+          const err = await res.json();
+          showNotification({ title: 'Error', message: err.error || 'Failed to create ward', color: 'red' });
+        }
       }
-    } else {
-      const res = await fetch('/api/wards', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(values),
-      });
-      if (res.ok) {
-        showNotification({ title: 'Success', message: 'Ward created', color: 'green' });
-        fetchWards();
-        setModalOpened(false);
-      } else {
-        const err = await res.json();
-        showNotification({ title: 'Error', message: err.error || 'Failed to create ward', color: 'red' });
-      }
+    } finally {
+      hideLoading();
     }
   };
 
@@ -94,12 +102,17 @@ export default function WardsPage() {
       labels: { confirm: 'Delete', cancel: 'Cancel' },
       confirmProps: { color: 'red' },
       onConfirm: async () => {
-        const res = await fetch(`/api/wards/${ward._id}`, { method: 'DELETE' });
-        if (res.ok) {
-          showNotification({ title: 'Success', message: 'Ward deleted', color: 'green' });
-          fetchWards();
-        } else {
-          showNotification({ title: 'Error', message: 'Failed to delete ward', color: 'red' });
+        showLoading();
+        try {
+          const res = await fetch(`/api/wards/${ward._id}`, { method: 'DELETE' });
+          if (res.ok) {
+            showNotification({ title: 'Success', message: 'Ward deleted', color: 'green' });
+            await fetchWards();
+          } else {
+            showNotification({ title: 'Error', message: 'Failed to delete ward', color: 'red' });
+          }
+        } finally {
+          hideLoading();
         }
       },
     });

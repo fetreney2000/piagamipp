@@ -20,6 +20,7 @@ import {
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { LoadingProvider } from '@/lib/loading-context';
 
 const navItems = [
   { label: 'Dashboard', href: '/', icon: IconDashboard },
@@ -70,7 +71,9 @@ function Shell({ children }: { children: React.ReactNode }) {
             })}
           </AppShell.Navbar>
           <AppShell.Main>
-            {children}
+            <LoadingProvider>
+              {children}
+            </LoadingProvider>
             <Text ta="center" c="dimmed" size="xs" mt="xl" py="md">
               PiagamIPP © {new Date().getFullYear()} — Ahmad Fetre Bin Mohammad Zime
             </Text>
