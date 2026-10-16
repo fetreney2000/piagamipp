@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import {
-  Button, Table, Badge, Modal, Select, NumberInput, Group, Title, ActionIcon, Text, Switch, SimpleGrid,
+  Alert, Button, Table, Modal, Select, NumberInput, Group, Title, ActionIcon, Text, Switch, SimpleGrid,
 } from '@mantine/core';
 import { DatePickerInput, MonthPickerInput, TimePicker } from '@mantine/dates';
 import { useForm } from '@mantine/form';
@@ -10,12 +10,13 @@ import { showNotification } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import { getMYTCurrentDateTime, createUTCDate } from '@/lib/timezone';
 import { determineIndentType } from '@/lib/indent-type';
+import { isIndentType, parseValidTime } from '@/lib/validation';
 import { useLoading } from '@/lib/loading-context';
 import {
   IconClipboardList, IconPlus, IconCalendarSearch, IconBuildingHospital, IconFilterCheck,
   IconCategory, IconClock, IconCalendarEvent, IconPill, IconCheckbox, IconCalendarCheck,
-  IconHourglass, IconTarget, IconSettings, IconTrash, IconEdit, IconX, IconDeviceFloppy,
-  IconMoonStars, IconPhoneCall, IconCircleCheck, IconAlertCircle,
+  IconHourglass, IconTarget, IconTrash, IconEdit, IconX, IconDeviceFloppy,
+  IconAlertCircle,
 } from '@tabler/icons-react';
 
 let warningAudioCtx: AudioContext | null = null;
@@ -87,10 +88,22 @@ function toDateOrNull(v: Date | string | null): Date | null {
   return new Date(v + 'T00:00:00.000Z');
 }
 
+// Module-level so its identity is stable across renders: useForm memoizes
+// setFieldValue against the validate object, which lets the auto-type effect
+// safely list setFieldValue in its dependency array (see below).
+const indentFormValidate = {
+  dateReceived: (v: Date | null) => (v ? null : 'Date received is required'),
+  timeReceived: (v: string) => (parseValidTime(v) ? null : 'Time received is required'),
+  type: (v: string) => (isIndentType(v) ? null : 'Type is required'),
+  wardName: (v: string) => (v.trim().length > 0 ? null : 'Ward is required'),
+  numberOfRx: (v: number) => (Number.isInteger(v) && v >= 1 ? null : 'Enter a valid number of prescriptions'),
+};
+
 export default function IndentsPage() {
   const { showLoading, hideLoading } = useLoading();
   const [indents, setIndents] = useState<Indent[]>([]);
   const [wards, setWards] = useState<Ward[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [modalOpened, setModalOpened] = useState(false);
   const [editing, setEditing] = useState<Indent | null>(null);
   const [filterWard, setFilterWard] = useState<string | null>(null);
@@ -166,7 +179,9 @@ export default function IndentsPage() {
       dateCompleted: null as Date | null,
       timeCompleted: '',
     },
+    validate: indentFormValidate,
   });
+  const { setFieldValue } = form;
 
   const fetchIndents = useCallback(async () => {
     const params = new URLSearchParams();
@@ -179,15 +194,28 @@ export default function IndentsPage() {
       params.set('year', String(y));
     }
     const qs = params.toString();
-    const res = await fetch(`/api/indents${qs ? `?${qs}` : ''}`, { cache: 'no-store' });
-    const data = await res.json();
-    setIndents(data);
+    try {
+      const res = await fetch(`/api/indents${qs ? `?${qs}` : ''}`, { cache: 'no-store' });
+      if (!res.ok) throw new Error('Failed to load indents');
+      const data = await res.json();
+      if (!Array.isArray(data)) throw new Error('Failed to load indents');
+      setIndents(data);
+      setLoadError(null);
+    } catch {
+      setLoadError('Failed to load indents from the server.');
+    }
   }, [filterWard, filterPolicy, filterDate]);
 
   const fetchWards = useCallback(async () => {
-    const res = await fetch('/api/wards');
-    const data = await res.json();
-    setWards(data);
+    try {
+      const res = await fetch('/api/wards');
+      if (!res.ok) throw new Error('Failed to load wards');
+      const data = await res.json();
+      if (!Array.isArray(data)) throw new Error('Failed to load wards');
+      setWards(data);
+    } catch {
+      setLoadError('Failed to load wards from the server.');
+    }
   }, []);
 
   useEffect(() => {
@@ -234,19 +262,17 @@ export default function IndentsPage() {
         });
         const { isPublicHoliday } = await res.json();
         if (!cancelled) {
-          const type = determineIndentType(dateStr, time, isPublicHoliday);
-          form.setFieldValue('type', type);
+          setFieldValue('type', determineIndentType(dateStr, time, isPublicHoliday));
         }
       } catch {
         if (!cancelled) {
-          const type = determineIndentType(dateStr, time, false);
-          form.setFieldValue('type', type);
+          setFieldValue('type', determineIndentType(dateStr, time, false));
         }
       }
     })();
 
     return () => { cancelled = true; };
-  }, [editing, form.values.dateReceived, form.values.timeReceived]);
+  }, [editing, setFieldValue, form.values.dateReceived, form.values.timeReceived]);
 
   const handleToggleCountercheck = async (indent: Indent, checked: boolean) => {
     showLoading();
@@ -257,14 +283,16 @@ export default function IndentsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ counterchecked: checked }),
       });
-      setTogglingId(null);
       if (res.ok) {
         showNotification({ title: 'Success', message: checked ? 'Indent counterchecked' : 'Countercheck cleared', color: 'green' });
         await fetchIndents();
       } else {
         showNotification({ title: 'Error', message: 'Failed to update countercheck status', color: 'red' });
       }
+    } catch {
+      showNotification({ title: 'Error', message: 'Failed to update countercheck status', color: 'red' });
     } finally {
+      setTogglingId(null);
       hideLoading();
     }
   };
@@ -391,6 +419,15 @@ export default function IndentsPage() {
         </Group>
         <Button onClick={openAddModal} leftSection={<IconPlus size={16} />}>Add New Indent</Button>
       </Group>
+
+      {loadError && (
+        <Alert color="red" icon={<IconAlertCircle size={16} />} title="Failed to load data" mb="md">
+          <Group justify="space-between">
+            <Text size="sm">{loadError}</Text>
+            <Button size="xs" variant="light" onClick={() => { fetchIndents(); fetchWards(); }}>Retry</Button>
+          </Group>
+        </Alert>
+      )}
 
       <SimpleGrid cols={{ base: 1, sm: 3 }} mb="md">
         <MonthPickerInput
@@ -522,6 +559,7 @@ export default function IndentsPage() {
             label="Time Received"
             value={form.values.timeReceived}
             onChange={(v) => form.setFieldValue('timeReceived', v)}
+            error={form.errors.timeReceived}
             withDropdown
             format="12h"
             mb="sm"

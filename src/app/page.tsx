@@ -1,32 +1,22 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Card, Text, SimpleGrid, Group, Title, Center, Paper } from '@mantine/core';
+import { Alert, Button, Card, Text, SimpleGrid, Group, Title, Center, Paper } from '@mantine/core';
 import { MonthPickerInput } from '@mantine/dates';
 import { LineChart } from '@mantine/charts';
 import { getMYTCurrentDateTime } from '@/lib/timezone';
+import { isStats, type Stats } from '@/lib/api-types';
 import { useLoading } from '@/lib/loading-context';
 import {
   IconDashboard, IconFileDescription, IconClockCheck, IconClockExclamation,
   IconPercentage, IconClockHour4, IconChartInfographic, IconCalendarMonth,
-  IconHourglass, IconChartLine,
+  IconHourglass, IconChartLine, IconAlertCircle,
 } from '@tabler/icons-react';
-
-interface Stats {
-  totalIndents: number;
-  completedIndents: number;
-  pendingIndents: number;
-  under120: number;
-  over120: number;
-  complianceRate: number;
-  averageTime: number;
-  medianTime: number;
-}
 
 interface TrendItem {
   month: number;
   year: number;
-  complianceRate: number;
+  complianceRate: number | null;
 }
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -41,6 +31,7 @@ export default function DashboardPage() {
   const { showLoading, hideLoading } = useLoading();
   const [stats, setStats] = useState<Stats | null>(null);
   const [trends, setTrends] = useState<TrendItem[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [date, setDate] = useState<Date | null>(() => {
     const { date } = getMYTCurrentDateTime();
     const [y, m, d] = date.split('-').map(Number);
@@ -49,23 +40,40 @@ export default function DashboardPage() {
 
   const fetchStats = useCallback(async () => {
     if (!date) return;
-    const month = date.getMonth() + 1;
-    const year = date.getFullYear();
-    const res = await fetch(`/api/indents/stats?month=${month}&year=${year}`);
+    const res = await fetch(`/api/indents/stats?month=${date.getMonth() + 1}&year=${date.getFullYear()}`);
+    if (!res.ok) throw new Error('Failed to load stats');
     const data = await res.json();
+    if (!isStats(data)) throw new Error('Failed to load stats');
     setStats(data);
   }, [date]);
 
   const fetchTrends = useCallback(async () => {
     const res = await fetch('/api/indents/trends?months=12');
+    if (!res.ok) throw new Error('Failed to load trends');
     const data = await res.json();
-    setTrends(data);
+    setTrends(Array.isArray(data) ? data : []);
   }, []);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
+    setError(null);
     showLoading();
-    Promise.all([fetchStats(), fetchTrends()]).finally(() => hideLoading());
+    try {
+      const [statsResult, trendsResult] = await Promise.allSettled([fetchStats(), fetchTrends()]);
+      if (statsResult.status === 'rejected') throw statsResult.reason;
+      // A trends failure only empties the chart; stats are already loaded.
+      if (trendsResult.status === 'rejected') setTrends([]);
+    } catch {
+      setStats(null);
+      setTrends([]);
+      setError('Failed to load dashboard data. Please try again.');
+    } finally {
+      hideLoading();
+    }
   }, [fetchStats, fetchTrends, showLoading, hideLoading]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const complianceColor = stats && stats.complianceRate >= 80 ? 'green' : 'red';
 
@@ -89,7 +97,14 @@ export default function DashboardPage() {
         />
       </Group>
 
-      {stats ? (
+      {error ? (
+        <Alert color="red" icon={<IconAlertCircle size={16} />} title="Failed to load data" mb="lg">
+          <Group justify="space-between">
+            <Text size="sm">{error}</Text>
+            <Button size="xs" variant="light" onClick={() => load()}>Retry</Button>
+          </Group>
+        </Alert>
+      ) : stats ? (
         <>
           <SimpleGrid cols={{ base: 1, sm: 2, md: 3 }}>
             <Card shadow="sm" padding="lg" withBorder>
@@ -155,7 +170,7 @@ export default function DashboardPage() {
               series={[{ name: 'Compliance Rate', color: 'blue.6' }]}
               tickLine="y"
               withLegend
-              valueFormatter={(v) => `${v}%`}
+              valueFormatter={(v) => (v == null ? 'No data' : `${v}%`)}
             />
           </Paper>
         </>

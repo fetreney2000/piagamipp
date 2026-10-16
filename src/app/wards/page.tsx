@@ -2,14 +2,14 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import {
-  Button, Table, Modal, TextInput, Group, Title, ActionIcon, Text,
+  Alert, Button, Table, Modal, TextInput, Group, Title, ActionIcon, Text,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { showNotification } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import { useLoading } from '@/lib/loading-context';
 import {
-  IconBuildingHospital, IconPlus, IconEdit, IconTrash, IconX, IconDeviceFloppy,
+  IconBuildingHospital, IconPlus, IconEdit, IconTrash, IconX, IconDeviceFloppy, IconAlertCircle,
 } from '@tabler/icons-react';
 
 interface Ward {
@@ -22,6 +22,7 @@ export default function WardsPage() {
   const [wards, setWards] = useState<Ward[]>([]);
   const [modalOpened, setModalOpened] = useState(false);
   const [editing, setEditing] = useState<Ward | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const form = useForm({
     initialValues: { name: '' },
@@ -31,9 +32,16 @@ export default function WardsPage() {
   });
 
   const fetchWards = useCallback(async () => {
-    const res = await fetch(`/api/wards?_=${Date.now()}`, { cache: 'no-store' });
-    const data = await res.json();
-    setWards(data);
+    try {
+      const res = await fetch(`/api/wards?_=${Date.now()}`, { cache: 'no-store' });
+      if (!res.ok) throw new Error('Failed to load wards');
+      const data = await res.json();
+      if (!Array.isArray(data)) throw new Error('Failed to load wards');
+      setWards(data);
+      setLoadError(null);
+    } catch {
+      setLoadError('Failed to load wards from the server.');
+    }
   }, []);
 
   useEffect(() => {
@@ -128,6 +136,15 @@ export default function WardsPage() {
         <Button onClick={openAddModal} leftSection={<IconPlus size={16} />}>Add Ward</Button>
       </Group>
 
+      {loadError && (
+        <Alert color="red" icon={<IconAlertCircle size={16} />} title="Failed to load data" mb="md">
+          <Group justify="space-between">
+            <Text size="sm">{loadError}</Text>
+            <Button size="xs" variant="light" onClick={() => fetchWards()}>Retry</Button>
+          </Group>
+        </Alert>
+      )}
+
       <Table striped highlightOnHover withTableBorder>
         <Table.Thead>
           <Table.Tr>
@@ -170,6 +187,12 @@ export default function WardsPage() {
             mb="sm"
             leftSection={<IconBuildingHospital size={16} />}
           />
+          {editing && form.values.name.trim() !== editing.name && (
+            <Alert color="yellow" icon={<IconAlertCircle size={16} />} mb="sm">
+              Renaming applies to <b>future</b> indents only — historical indents keep the old
+              ward name, so past reports will list this ward under both names.
+            </Alert>
+          )}
           <Group justify="flex-end" mt="md">
             <Button variant="default" onClick={() => setModalOpened(false)} leftSection={<IconX size={16} />}>Cancel</Button>
             <Button type="submit" leftSection={editing ? <IconDeviceFloppy size={16} /> : <IconPlus size={16} />}>{editing ? 'Update' : 'Create'}</Button>

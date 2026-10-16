@@ -1,15 +1,16 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Tabs, Card, Text, SimpleGrid, Title, Group, Center, Paper } from '@mantine/core';
+import { Alert, Tabs, Button, Card, Text, SimpleGrid, Title, Group, Center, Paper } from '@mantine/core';
 import { BarChart } from '@mantine/charts';
 import { MonthPickerInput } from '@mantine/dates';
 import { getMYTCurrentDateTime } from '@/lib/timezone';
+import { isStats } from '@/lib/api-types';
 import { useLoading } from '@/lib/loading-context';
 import {
   IconReportAnalytics, IconCalendarMonth, IconCategory, IconClock, IconMoonStars, IconPhoneCall,
   IconFileDescription, IconClockCheck, IconClockExclamation, IconPercentage, IconClockHour4,
-  IconChartInfographic, IconChartBar, IconBuildingHospital, IconChartHistogram,
+  IconChartInfographic, IconChartBar, IconBuildingHospital, IconChartHistogram, IconAlertCircle,
 } from '@tabler/icons-react';
 
 interface GroupStats {
@@ -62,35 +63,49 @@ export default function ReportsPage() {
     return new Date(y, m - 1, d);
   });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchAllData = useCallback(async () => {
     if (!date) return;
     setLoading(true);
+    setError(null);
     showLoading();
     const month = date.getMonth() + 1;
     const year = date.getFullYear();
 
     try {
-      const [statsResults, wardData, distData] = await Promise.all([
+      const [statsResults, perWardData, distributionData] = await Promise.all([
         Promise.all(
-          groups.map((group) => {
+          groups.map(async (group) => {
             let url = `/api/indents/stats?month=${month}&year=${year}`;
             if (group.type) url += `&type=${group.type}`;
-            return fetch(url).then((r) => r.json());
+            const res = await fetch(url);
+            if (!res.ok) throw new Error('Failed to load stats');
+            const data = await res.json();
+            if (!isStats(data)) throw new Error('Failed to load stats');
+            return data;
           })
         ),
-        fetch(`/api/indents/per-ward?month=${month}&year=${year}`).then((r) => r.ok ? r.json() : []),
-        fetch(`/api/indents/distribution?month=${month}&year=${year}`).then((r) => r.ok ? r.json() : []),
+        fetch(`/api/indents/per-ward?month=${month}&year=${year}`)
+          .then((r) => (r.ok ? r.json() : []))
+          .then((d) => (Array.isArray(d) ? d : [])),
+        fetch(`/api/indents/distribution?month=${month}&year=${year}`)
+          .then((r) => (r.ok ? r.json() : []))
+          .then((d) => (Array.isArray(d) ? d : [])),
       ]);
 
       const results: Record<string, GroupStats> = {};
       groups.forEach((g, i) => { results[g.value] = statsResults[i]; });
       setStatsMap(results);
-      setWardData(wardData);
-      setDistribution(distData);
-
-      setLoading(false);
+      setWardData(perWardData);
+      setDistribution(distributionData);
+    } catch {
+      setStatsMap({});
+      setWardData([]);
+      setDistribution([]);
+      setError('Failed to load reports data. Please try again.');
     } finally {
+      setLoading(false);
       hideLoading();
     }
   }, [date, showLoading, hideLoading]);
@@ -173,7 +188,14 @@ export default function ReportsPage() {
         <MonthPickerInput value={date} onChange={(v) => setDate(toDateOrNull(v))} placeholder="Select month" leftSection={<IconCalendarMonth size={16} />} />
       </Group>
 
-      {loading ? (
+      {error ? (
+        <Alert color="red" icon={<IconAlertCircle size={16} />} title="Failed to load data" mb="lg">
+          <Group justify="space-between">
+            <Text size="sm">{error}</Text>
+            <Button size="xs" variant="light" onClick={() => fetchAllData()}>Retry</Button>
+          </Group>
+        </Alert>
+      ) : loading ? (
         <Center h={200}><Group gap="xs"><IconClockHour4 size={20} /><Text c="dimmed">Loading reports...</Text></Group></Center>
       ) : (
         <>
