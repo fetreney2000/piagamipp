@@ -10,7 +10,8 @@ export async function POST(request: NextRequest) {
     const dateOnly = date.slice(0, 10);
     const isPublicHoliday = await isSabahPublicHoliday(dateOnly);
     return NextResponse.json({ isPublicHoliday });
-  } catch {
+  } catch (err) {
+    console.error('[api/holidays/check] POST failed:', err);
     return NextResponse.json({ error: 'Failed to check holiday' }, { status: 500 });
   }
 }

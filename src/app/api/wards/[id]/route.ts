@@ -1,21 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
+import { cleanText } from '@/lib/validation';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
-    const db = await getDatabase();
+    if (!ObjectId.isValid(id)) {
+      return NextResponse.json({ error: 'Invalid ward id' }, { status: 400 });
+    }
+
     const body = await request.json();
 
-    const existing = await db.collection('wards').findOne({ name: body.name, _id: { $ne: new ObjectId(id) } });
+    const name = cleanText(body.name);
+    if (!name) {
+      return NextResponse.json({ error: 'Ward name is required' }, { status: 400 });
+    }
+
+    const db = await getDatabase();
+    const existing = await db.collection('wards').findOne({ name, _id: { $ne: new ObjectId(id) } });
     if (existing) {
       return NextResponse.json({ error: 'Ward name already exists' }, { status: 409 });
     }
 
     const result = await db.collection('wards').findOneAndUpdate(
       { _id: new ObjectId(id) },
-      { $set: { name: body.name } },
+      { $set: { name } },
       { returnDocument: 'after' }
     );
 
@@ -24,7 +34,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     return NextResponse.json(result);
-  } catch {
+  } catch (err) {
+    console.error('[api/wards/:id] PUT failed:', err);
     return NextResponse.json({ error: 'Failed to update ward' }, { status: 500 });
   }
 }
@@ -32,6 +43,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    if (!ObjectId.isValid(id)) {
+      return NextResponse.json({ error: 'Invalid ward id' }, { status: 400 });
+    }
+
     const db = await getDatabase();
     const result = await db.collection('wards').deleteOne({ _id: new ObjectId(id) });
 
@@ -40,7 +55,8 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     }
 
     return NextResponse.json({ success: true });
-  } catch {
+  } catch (err) {
+    console.error('[api/wards/:id] DELETE failed:', err);
     return NextResponse.json({ error: 'Failed to delete ward' }, { status: 500 });
   }
 }

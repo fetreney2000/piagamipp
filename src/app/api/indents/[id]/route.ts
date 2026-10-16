@@ -2,48 +2,81 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/mongodb';
 import { ObjectId } from 'mongodb';
 import { getMYTCurrentDateTime } from '@/lib/timezone';
-
-function calculateMinutes(dateReceived: Date, timeReceived: string, dateCompleted: Date, timeCompleted: string): number {
-  const [rh, rm] = timeReceived.split(':').map(Number);
-  const [ry, rmon, rd] = [dateReceived.getUTCFullYear(), dateReceived.getUTCMonth(), dateReceived.getUTCDate()];
-  const start = new Date(Date.UTC(ry, rmon, rd, rh, rm));
-
-  const [ch, cm] = timeCompleted.split(':').map(Number);
-  const [cy, cmon, cd] = [dateCompleted.getUTCFullYear(), dateCompleted.getUTCMonth(), dateCompleted.getUTCDate()];
-  const end = new Date(Date.UTC(cy, cmon, cd, ch, cm));
-
-  return Math.round((end.getTime() - start.getTime()) / 60000);
-}
+import { calculateMinutes } from '@/lib/total-time';
+import { isIndentType, parsePositiveInt, parseValidDate, parseValidTime, cleanText } from '@/lib/validation';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    if (!ObjectId.isValid(id)) {
+      return NextResponse.json({ error: 'Invalid indent id' }, { status: 400 });
+    }
+
     const db = await getDatabase();
     const body = await request.json();
 
     const updateData: Record<string, unknown> = {};
 
-    if (body.dateReceived !== undefined) updateData.dateReceived = new Date(body.dateReceived);
-    if (body.timeReceived !== undefined) updateData.timeReceived = body.timeReceived;
-    if (body.type !== undefined) updateData.type = body.type;
-    if (body.wardName !== undefined) updateData.wardName = body.wardName;
-    if (body.numberOfRx !== undefined) updateData.numberOfRx = parseInt(body.numberOfRx);
+    if (body.dateReceived !== undefined) {
+      const dateReceived = parseValidDate(body.dateReceived);
+      if (!dateReceived) {
+        return NextResponse.json({ error: 'dateReceived must be a valid date' }, { status: 400 });
+      }
+      updateData.dateReceived = dateReceived;
+    }
+    if (body.timeReceived !== undefined) {
+      const timeReceived = parseValidTime(body.timeReceived);
+      if (!timeReceived) {
+        return NextResponse.json({ error: 'timeReceived must be in HH:mm format' }, { status: 400 });
+      }
+      updateData.timeReceived = timeReceived;
+    }
+    if (body.type !== undefined) {
+      if (!isIndentType(body.type)) {
+        return NextResponse.json({ error: 'type must be one of: office_hour, ipp_shift, on_call' }, { status: 400 });
+      }
+      updateData.type = body.type;
+    }
+    if (body.wardName !== undefined) {
+      const wardName = cleanText(body.wardName);
+      if (!wardName) {
+        return NextResponse.json({ error: 'wardName is required' }, { status: 400 });
+      }
+      updateData.wardName = wardName;
+    }
+    if (body.numberOfRx !== undefined) {
+      const numberOfRx = parsePositiveInt(body.numberOfRx);
+      if (numberOfRx === null) {
+        return NextResponse.json({ error: 'numberOfRx must be a positive integer' }, { status: 400 });
+      }
+      updateData.numberOfRx = numberOfRx;
+    }
+
     if (body.counterchecked !== undefined) {
+      if (typeof body.counterchecked !== 'boolean') {
+        return NextResponse.json({ error: 'counterchecked must be a boolean' }, { status: 400 });
+      }
+
       const existing = await db.collection('indents').findOne({ _id: new ObjectId(id) });
       const wasAlreadyCounterchecked = existing?.counterchecked === true;
 
       updateData.counterchecked = body.counterchecked;
 
+      // Prefer the received values being updated over the stored ones when
+      // (re)calculating total time, so correcting a received date/time is reflected.
+      const effectiveReceivedDate = (updateData.dateReceived as Date | undefined) ?? existing?.dateReceived;
+      const effectiveReceivedTime = (updateData.timeReceived as string | undefined) ?? existing?.timeReceived;
+
       if (body.counterchecked === true && !wasAlreadyCounterchecked) {
-        // Newly counterchecked — record completion time
+        // Newly counterchecked — record completion time now
         const { date, time } = getMYTCurrentDateTime();
         updateData.dateCompleted = new Date(date);
         updateData.timeCompleted = time.slice(0, 5);
 
-        if (existing) {
+        if (effectiveReceivedDate && effectiveReceivedTime) {
           updateData.totalTimeMinutes = calculateMinutes(
-            existing.dateReceived,
-            existing.timeReceived,
+            effectiveReceivedDate,
+            effectiveReceivedTime,
             updateData.dateCompleted as Date,
             updateData.timeCompleted as string
           );
@@ -54,19 +87,39 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         updateData.timeCompleted = null;
         updateData.totalTimeMinutes = null;
       } else if (body.counterchecked === true && wasAlreadyCounterchecked) {
-        if (body.dateCompleted !== undefined) updateData.dateCompleted = new Date(body.dateCompleted);
-        if (body.timeCompleted !== undefined) updateData.timeCompleted = body.timeCompleted;
-        if (body.dateCompleted !== undefined || body.timeCompleted !== undefined) {
-          const effectiveDate = (updateData.dateCompleted as Date) ?? existing?.dateCompleted;
-          const effectiveTime = (updateData.timeCompleted as string) ?? existing?.timeCompleted;
-          if (effectiveDate && effectiveTime && existing) {
-            updateData.totalTimeMinutes = calculateMinutes(
-              existing.dateReceived,
-              existing.timeReceived,
-              effectiveDate,
-              effectiveTime
-            );
+        if (body.dateCompleted !== undefined) {
+          const dateCompleted = parseValidDate(body.dateCompleted);
+          if (!dateCompleted) {
+            return NextResponse.json({ error: 'dateCompleted must be a valid date' }, { status: 400 });
           }
+          updateData.dateCompleted = dateCompleted;
+        }
+        if (body.timeCompleted !== undefined) {
+          const timeCompleted = parseValidTime(body.timeCompleted);
+          if (!timeCompleted) {
+            return NextResponse.json({ error: 'timeCompleted must be in HH:mm format' }, { status: 400 });
+          }
+          updateData.timeCompleted = timeCompleted;
+        }
+
+        const receivedChanged =
+          updateData.dateReceived !== undefined || updateData.timeReceived !== undefined;
+        const completedChanged =
+          body.dateCompleted !== undefined || body.timeCompleted !== undefined;
+        const effectiveCompletedDate = (updateData.dateCompleted as Date | undefined) ?? existing?.dateCompleted;
+        const effectiveCompletedTime = (updateData.timeCompleted as string | undefined) ?? existing?.timeCompleted;
+
+        if (
+          (receivedChanged || completedChanged) &&
+          effectiveReceivedDate && effectiveReceivedTime &&
+          effectiveCompletedDate && effectiveCompletedTime
+        ) {
+          updateData.totalTimeMinutes = calculateMinutes(
+            effectiveReceivedDate,
+            effectiveReceivedTime,
+            effectiveCompletedDate,
+            effectiveCompletedTime
+          );
         }
       }
     }
@@ -82,7 +135,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     }
 
     return NextResponse.json(result);
-  } catch {
+  } catch (err) {
+    console.error('[api/indents/:id] PUT failed:', err);
     return NextResponse.json({ error: 'Failed to update indent' }, { status: 500 });
   }
 }
@@ -90,6 +144,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    if (!ObjectId.isValid(id)) {
+      return NextResponse.json({ error: 'Invalid indent id' }, { status: 400 });
+    }
+
     const db = await getDatabase();
     const result = await db.collection('indents').deleteOne({ _id: new ObjectId(id) });
 
@@ -98,7 +156,8 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     }
 
     return NextResponse.json({ success: true });
-  } catch {
+  } catch (err) {
+    console.error('[api/indents/:id] DELETE failed:', err);
     return NextResponse.json({ error: 'Failed to delete indent' }, { status: 500 });
   }
 }

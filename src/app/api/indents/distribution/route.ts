@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/mongodb';
 import { createUTCDate } from '@/lib/timezone';
+import { parseMonthYear } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,12 +12,11 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type');
 
     const matchFilter: Record<string, unknown> = { counterchecked: true };
-    if (month && year) {
-      const m = parseInt(month);
-      const y = parseInt(year);
+    const monthYear = parseMonthYear(month, year);
+    if (monthYear) {
       matchFilter.dateReceived = {
-        $gte: createUTCDate(y, m, 1),
-        $lt: createUTCDate(y, m + 1, 1),
+        $gte: createUTCDate(monthYear.year, monthYear.month, 1),
+        $lt: createUTCDate(monthYear.year, monthYear.month + 1, 1),
       };
     }
     if (type) {
@@ -48,7 +48,8 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json(distribution);
-  } catch {
+  } catch (err) {
+    console.error('[api/indents/distribution] GET failed:', err);
     return NextResponse.json({ error: 'Failed to fetch distribution' }, { status: 500 });
   }
 }

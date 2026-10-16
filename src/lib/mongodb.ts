@@ -40,8 +40,9 @@ export async function ensureIndexes() {
       db.collection('indents').createIndex({ totalTimeMinutes: 1 }),
       db.collection('wards').createIndex({ name: 1 }, { unique: true }),
     ]);
-  } catch {
+  } catch (err) {
     // Index creation is best-effort; indexes may already exist
+    console.error('[mongodb] ensureIndexes failed:', err);
   }
 }
 

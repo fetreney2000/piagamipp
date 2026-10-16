@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/mongodb';
 import { createUTCDate } from '@/lib/timezone';
+import { parseMonthYear } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,12 +12,11 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type');
 
     const matchFilter: Record<string, unknown> = {};
-    if (month && year) {
-      const m = parseInt(month);
-      const y = parseInt(year);
+    const monthYear = parseMonthYear(month, year);
+    if (monthYear) {
       matchFilter.dateReceived = {
-        $gte: createUTCDate(y, m, 1),
-        $lt: createUTCDate(y, m + 1, 1),
+        $gte: createUTCDate(monthYear.year, monthYear.month, 1),
+        $lt: createUTCDate(monthYear.year, monthYear.month + 1, 1),
       };
     }
     if (type) {
@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
           completedIndents: { $sum: { $cond: [{ $eq: ['$counterchecked', true] }, 1, 0] } },
           pendingIndents: { $sum: { $cond: [{ $eq: ['$counterchecked', false] }, 1, 0] } },
           totalMinutes: { $sum: { $ifNull: ['$totalTimeMinutes', 0] } },
+          // $percentile requires MongoDB 7.0+
           medianTime: { $percentile: { input: '$totalTimeMinutes', p: [0.5], method: 'approximate' } },
           under120: {
             $sum: {
@@ -90,7 +91,8 @@ export async function GET(request: NextRequest) {
       averageTime: Math.round(averageTime * 100) / 100,
       medianTime: Math.round(medianTime * 100) / 100,
     });
-  } catch {
+  } catch (err) {
+    console.error('[api/indents/stats] GET failed:', err);
     return NextResponse.json({ error: 'Failed to fetch stats' }, { status: 500 });
   }
 }
